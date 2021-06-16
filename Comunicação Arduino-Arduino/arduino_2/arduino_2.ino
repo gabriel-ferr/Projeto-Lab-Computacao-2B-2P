@@ -1,21 +1,25 @@
   /* -------------------------------------------------------------------------------------------- *
-   *  Arduino de entrada de dados a partir do monitor serial.                                     *
-   *  É o primeiro arduino da conexão estabelecida no protótipo simulado.                         *
+   *  Código do Arduino 2 ~ Arduino de Cadeia ou Final.                                           *
    * -------------------------------------------------------------------------------------------- *
-   *                                                                                              *
-   * Nele está presente um sistema de processamento em paralelo para interpretar entradas de      *
-   * dados a partir do monitor serial e adicioná-las ao vetor de execuções, assim como o proces-  *
-   * samento do vetor e envio dos dados no devido delay do processo.                              *
+   *    Código do arduino de 'ID' 2 a 9 da cadeia de ligação Arduino-Arduino I2C.                 *
+   * -------------------------------------------------------------------------------------------- *
+   *    ~ O sistema comporta uma quantidade de até 9 arduinos ligados em cadeia, permitindo o     *
+   * envio de mensagens em uma única direção, partindo do Arduino de 'ID' 1 até o de 'ID' 9.      *
+   *    ~ Nesse caso, o código está completo. Contudo, a função 'SendTo()' pode ser removida do   *
+   * código para economizar espaço, já que ela torna-se desnecessária no final da cadeia.         *
    * -------------------------------------------------------------------------------------------- *
    * Versão 1.0                                                                                   *
    *    por Gabriel Vinicius Ferreira.                                                            *
-   * -------------------------------------------------------------------------------------------- */
-  /* - Definições                                                                                 */
+   * -------------------------------------------------------------------------------------------- *
+   * - Definições                                                                                 */
   // Representa o ID do arduino na rede de conexões. Pode variar entre 1 a 9, não podendo ser repetido.
   //    OBS*: Organize os IDs na ordem dos arduinos, pois, o sistema não enviará a mensagem para um arduino com ID inferior ao dele.
   #define ID 2
-  
-  /* Inicialização do Arduino. */
+  // Define o limite da cadeia de recebimento de dados.
+  //    ~ O valor definido aqui deve ser igual ao último ID usado na cadeia de arduinos.
+  #define ID_LIMIT 3
+  /* -------------------------------------------------------------------------------------------- */
+  /* Inicialização do Arduino.                                                                    */
   void setup()
   {
     // Inicializa o sistema Serial em uma atualização de 9600.
@@ -25,24 +29,85 @@
     }
   }
 
-  /* Laço de repetição do loop. */
+  /* -------------------------------------------------------------------------------------------- */
+  /* Laço de repetição do loop.                                                                   */
   void loop()
   {
     // Verifica se existem atualizações a serem efetuadas.
     if (Serial.available() > 0) ReceiveFrom();
   }
 
-  /* Faz o recebimento das mensagens. */
-  void ReceiveFrom()
+  /* -------------------------------------------------------------------------------------------- */
+  /* Faz o tratamento e o manuseio dos dados.                                                     */
+  //    Em 'code' deverá estar o código de indentificação da mensagem. Ele será utilizado para que o sistema saiba
+  // a finalidade da mensagem no decorrer do tratamento das informações.
+  //    Em 'message' temos a mensagem propriamente dita.
+  void HandleData(int code, int message)
   {
-    // Buffer para leitura do valor presente na porta serial.
-    String _sbuffer = Serial.readString();
-    // Converte o valor do buffer para Inteiro.
-    unsigned long _buffer = (unsigned long) _sbuffer.toInt();
-    
+    Serial.println("");
+    // Verifica com base no código.
+    switch (code)
+    {
+      case 0:
+          Serial.println("Mensagem recebida!");
+          break;
+      case 99:
+          Serial.print("Mensagem recebida! Reenviando: ");
+          Serial.println(message);
+    }
   }
   
-  /* Faz o envio de uma mensagem para outro arduino. */
+  /* -------------------------------------------------------------------------------------------- */
+  /* Faz o recebimento das mensagens.                                                             */
+  void ReceiveFrom()
+  {
+    // Converte o valor do buffer para Inteiro.
+    unsigned long _buffer = (unsigned long) (Serial.readString().toInt());
+
+    Serial.print("RECEIVED: ");
+    Serial.print(_buffer);
+
+    // Remove do buffer o ID do arduino de origem.
+    int _from = (int) (_buffer / 10000000UL);
+    // Remove do buffer o ID do arduino de destino.
+    int _to = (int) ((_buffer / 1000000UL) % 10);
+    // Remove do buffer o código da mensagem.
+    int _code = (int) ((_buffer / 10000UL) % 100);
+    // Remove do buffer a mensagem em sí.
+    int _message = (int) (_buffer % 10000UL);
+    
+    // Verifica se o arduino de origem é o arduino anterior a este. Caso não for, ele ignora a mensagem.
+    if (_from != (ID - 1)) return;
+    // Verifica se o arduino de origem é esse. Caso não for, envia para o arduino de origem.
+    if (_to != ID)
+    {
+      // Ignora destinos anteriores na cadeia.
+      if ((_to < ID) and (_to != 0)) return;
+      // Repassa a mensagem, caso o arduino não seja o limite da cadeia.
+      if (ID < ID_LIMIT)
+      {
+        Serial.print("[");
+        SendTo(_to, _code, _message);
+        Serial.println("]");
+      }
+      // Se não for para interpretar a mensagem, ignora.
+      if (_to != 0) return;
+    }
+    Serial.print(" | from: ");
+    Serial.print(_from);
+    Serial.print(" | to: ");
+    Serial.print(_to);
+    Serial.print(" | code: ");
+    Serial.print(_code);
+    Serial.print(" | message: ");
+    Serial.println(_message);    
+
+    // Envia o código de indentificação e a mensagem para o tratamento.
+    HandleData(_code, _message);
+  }
+
+  /* -------------------------------------------------------------------------------------------- */
+  /* Faz o envio de uma mensagem para outro arduino.                                              */
   // O "to" representa o ID do arduino de destino, podendo variar de 1 a 9. O '0' representa todos.
   // "code" representa o código de indentificação do sentido da mensagem, para o processamento no arduino de destino. Pode assumir valores de 0 a 99.
   // "message", por fim, representa o valor da mensagem que pode variar de 0 a 1023.
