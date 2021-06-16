@@ -1,21 +1,21 @@
   /* -------------------------------------------------------------------------------------------- *
-   *  Arduino de entrada de dados a partir do monitor serial.                                     *
-   *  É o primeiro arduino da conexão estabelecida no protótipo simulado.                         *
+   *  Código do Arduino 1 ~ Arduino de Entrada.                                                   *
    * -------------------------------------------------------------------------------------------- *
-   *                                                                                              *
-   * Nele está presente um sistema de processamento em paralelo para interpretar entradas de      *
-   * dados a partir do monitor serial e adicioná-las ao vetor de execuções, assim como o proces-  *
-   * samento do vetor e envio dos dados no devido delay do processo.                              *
+   *    Código do arduino de 'ID' 1 da cadeia de ligação Arduino-Arduino I2C.                     *
+   * -------------------------------------------------------------------------------------------- *
+   *    ~ O sistema comporta uma quantidade de até 9 arduinos ligados em cadeia, permitindo o     *
+   * envio de mensagens em uma única direção, partindo do Arduino de 'ID' 1 até o de 'ID' 9.      *
+   *    ~ Para redução do código, foi removida a função de recebimento de dados do Arduino'1.     *
    * -------------------------------------------------------------------------------------------- *
    * Versão 1.0                                                                                   *
    *    por Gabriel Vinicius Ferreira.                                                            *
-   * -------------------------------------------------------------------------------------------- */
-  /* - Definições                                                                                 */
+   * -------------------------------------------------------------------------------------------- *
+   * - Definições                                                                                 */
   // Representa o ID do arduino na rede de conexões. Pode variar entre 1 a 9, não podendo ser repetido.
   //    OBS*: Organize os IDs na ordem dos arduinos, pois, o sistema não enviará a mensagem para um arduino com ID inferior ao dele.
   #define ID 1
-  
-  /* Inicialização do Arduino. */
+  /* -------------------------------------------------------------------------------------------- */
+  /* Inicialização do Arduino.                                                                    */
   void setup()
   {
     // Inicializa o sistema Serial em uma atualização de 9600.
@@ -25,20 +25,28 @@
     }
   }
 
-  /* Laço de repetição do loop. */
+  /* Laço de repetição do loop.                                                                   */
   void loop()
   {
     SendTo(2, 0, 1);
     delay(2000);
-    SendTo(2, 99, 1023);
+    SendTo(0, 99, 1023);
     delay(2000);
-    SendTo(2, 0, 55);
+    SendTo(3, 0, 55);
     delay(2000);
     SendTo(2, 0, 893);
     delay(2000);
+    SendTo(1, 0, 1);
+    delay(2000);
+    SendTo(0, 99, 1023);
+    delay(2000);
+    SendTo(2, 0, 55);
+    delay(2000);
+    SendTo(3, 0, 893);
+    delay(2000);
   }
   
-  /* Faz o envio de uma mensagem para outro arduino. */
+  /* Faz o envio de uma mensagem para outro arduino.                                              */
   // O "to" representa o ID do arduino de destino, podendo variar de 1 a 9. O '0' representa todos.
   // "code" representa o código de indentificação do sentido da mensagem, para o processamento no arduino de destino. Pode assumir valores de 0 a 99.
   // "message", por fim, representa o valor da mensagem que pode variar de 0 a 1023.
