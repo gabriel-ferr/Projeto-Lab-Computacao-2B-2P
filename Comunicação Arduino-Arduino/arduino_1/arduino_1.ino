@@ -28,52 +28,14 @@
   /* Laço de repetição do loop. */
   void loop()
   {
-    // Verifica se existem atualizações a serem efetuadas.
-    if ((Serial.available() > 0) && (ID != 1)) ReceiveFrom();       // Para economizar espaço, está linha pode ser removida no Arduino de 'ID' 1, assim como a função 'ReceiveFrom()'.
-                                                                    // Também é possível eliminar a função 'SendTo()' do Arduino de 'ID' 9, ou no Arduino que estiver ao final da cadeia.
-  }
-
-  /* Faz o tratamento dos dados recebidos. */
-  void HandleData(int code, int message)
-  {
-    // Faz a determinação da função baseado no código.
-    switch (code)
-    {
-      case 0:
-              Serial.print("Funcionou: ");
-              Serial.println(message);
-              break;
-      
-    }
-  }
-
-  /* Faz o recebimento das mensagens. */
-  void ReceiveFrom()
-  {
-    // Buffer para leitura do valor presente na porta serial.
-    unsigned long _sbuffer = (unsigned long) Serial.readString();
-    // Separa-se do buffer a origem da mensagem.
-    int _from = (int) _sbuffer / 10000000UL;
-    // Separa-se do buffer o destino da mensagem.
-    int _to = (int) ((_sbuffer / 1000000UL) % 10);
-    // Separa-se do buffer o código indentificação.
-    int _code = (int) ((_sbuffer / 10000UL) % 100);
-    // Separa-se a mensagem do buffer.
-    int _message = (int) _sbuffer % 10000;
-
-    // Verifica se a origem é o arduino com ID anterior ao dele, se não for, significa uma violação e ignora a mensagem.
-    if (_from != (ID - 1)) return;
-    // Verifica se o arduino de destino é o atual, se não for, passa a mensagem afrente.
-    //  Percebe-se que, caso o destino seja 0, ele deve continuar o código.
-    if ((_to != ID) or (_to == 0))
-    {
-      if (ID != 9) {                          // Se o ID do arduino for '9', significa que ele é o final da série e não pode passar a mensagem para nenhum outro.
-        SendTo(_to, _code, _message);         //    ~ Faz o envio da mensagem para o próximo arduino.
-        if (_to != 0) return;                 //    ~ Se o '_to" não for 0, interrompe o recebimendo dos dados.
-      }
-    }
-    // Passa os elementos para o tratamento de dados.
-    HandleData(_code, _message);
+    SendTo(2, 0, 1);
+    delay(2000);
+    SendTo(2, 99, 1023);
+    delay(2000);
+    SendTo(2, 0, 55);
+    delay(2000);
+    SendTo(2, 0, 893);
+    delay(2000);
   }
   
   /* Faz o envio de uma mensagem para outro arduino. */
