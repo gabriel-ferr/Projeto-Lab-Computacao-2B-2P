@@ -24,7 +24,8 @@
       ; // Força a espera da porta serial ser conectada.
     }
   }
-
+  
+  /* -------------------------------------------------------------------------------------------- */
   /* Laço de repetição do loop.                                                                   */
   void loop()
   {
@@ -45,7 +46,8 @@
     SendTo(3, 0, 893);
     delay(2000);
   }
-  
+
+  /* -------------------------------------------------------------------------------------------- */
   /* Faz o envio de uma mensagem para outro arduino.                                              */
   // O "to" representa o ID do arduino de destino, podendo variar de 1 a 9. O '0' representa todos.
   // "code" representa o código de indentificação do sentido da mensagem, para o processamento no arduino de destino. Pode assumir valores de 0 a 99.
