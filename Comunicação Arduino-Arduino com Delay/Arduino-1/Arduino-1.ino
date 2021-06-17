@@ -30,7 +30,7 @@
   // Cria uma estrutura para setar as mensagens que devem ser enviadas para o próximo arduino e o instante em 'ms' em que o
   // envio deve ser efetuado.
   //    ~ int message: define a mensagem que deve ser enviada.
-  //    ~ int code: código da mensagem a ser enviada.
+  //    ~ int code: código de identificação da mensagem a ser enviada.
   //    ~ int to: destino da mensagem.
   //    ~ unsigned long timeToSend: define o instante em 'ms' de execução do arduino em que o envio da mensagem deve ser efetuado.
   typedef struct
@@ -163,7 +163,7 @@
   /* -------------------------------------------------------------------------------------------- */
   /* Faz o envio de uma mensagem para outro arduino.                                              */
   // O "to" representa o ID do arduino de destino, podendo variar de 1 a 9. O '0' representa todos.
-  // "code" representa o código de indentificação do sentido da mensagem, para o processamento no arduino de destino. Pode assumir valores de 0 a 99.
+  // "code" representa o código de identificação do sentido da mensagem, para o processamento no arduino de destino. Pode assumir valores de 0 a 99.
   // "message", por fim, representa o valor da mensagem que pode variar de 0 a 1023.
   void SendTo(int to, int code, int message)
   {
@@ -181,9 +181,9 @@
     // Inicializa o buffer com o valor da mensagem.
     _buffer = (unsigned long) message;
             // A mensagem em si ocupará os 4 primeiros digitos do envio. _buffer = (####)
-    // Adiciona o código de indentificação ao buffer.
+    // Adiciona o código de identificação ao buffer.
     _buffer += (code * 10000UL);
-            // O código de indentificação ocupará os 2 digitos seguintes. _buffer = (CC####)
+            // O código de identificação ocupará os 2 digitos seguintes. _buffer = (CC####)
     // Adiciona o destino ao buffer.
     _buffer += (to * 1000000UL);
             // O destino da mensagem ocupará 1 digito na sequência. _buffer = (TCC####)
