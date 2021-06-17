@@ -52,11 +52,11 @@
   /* -------------------------------------------------------------------------------------------- */
   /* - Inicialização das funções.                                                                 */
   void SendTo(int to, int code, int message);         // Função de envio de informações.
-  void AddMessage(int to, int code, int message);     // Função responsável por adicionar informações ao vetor de envio.
   void RemoveMessage();                               // Faz a remoção da mensagem no topo da cadeia e a movimentação do vetor.
+  void AddMessage(int to, int code, int message);     // Função responsável por adicionar informações ao vetor de envio.
   void TimeVerify();                                  // Função responsável por fazer a validação da mensagem no topo do vetor.
   /* -------------------------------------------------------------------------------------------- */
-  /* - Funções específicas de tratamento de dados.                                                */
+  /* - Funções específicas de tratamento de dados do monitor serial.                              */
   void Print(String command, String message);         // Exemplo de função de envio.
 
   void SerialManager();                               // Faz o gerenciamento dos dados retidos do monitor serial.
