@@ -42,7 +42,7 @@
     unsigned long timeToSend; // Define o instante de envio da mensagem.
   } Message;
   /* -------------------------------------------------------------------------------------------- */
-  /* - Variáveis                                                                                  */
+  /* - Variáveis do sistema de delay.                                                             */
   // Registra o tempo de funcionamento do Arduino.
   unsigned long Time;
   // Vetor de registro das mensagens a serem enviadas pelo arduino.
@@ -58,7 +58,7 @@
   /* -------------------------------------------------------------------------------------------- */
   /* - Funções específicas de tratamento de dados do monitor serial.                              */
   void Print(String command, String message);         // Exemplo de função de envio.
-
+  
   void SerialManager();                               // Faz o gerenciamento dos dados retidos do monitor serial.
   /* -------------------------------------------------------------------------------------------- */
   /* Inicialização do Arduino.                                                                    */
