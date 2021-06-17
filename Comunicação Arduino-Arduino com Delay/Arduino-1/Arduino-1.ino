@@ -43,7 +43,7 @@
   } Message;
   /* -------------------------------------------------------------------------------------------- */
   /* - Variáveis do sistema de delay.                                                             */
-  // Registra o tempo de funcionamento do Arduino.
+  // Registra o tempo de funcionamento do Arduino. Possui um limite de 40 dias antes de resetar de acordo com a documentação do Arduino.
   unsigned long Time;
   // Vetor de registro das mensagens a serem enviadas pelo arduino.
   Message MenssagesToSend[VECTOR_LIMIT];
@@ -115,7 +115,7 @@
   void AddMessage(int to, int code, int message)
   {
     // Verifica a posição do ponteiro. Isso é necessário para evitar o estouro do vetor.
-    if (VectorPoint >= 99) RemoveMessage();
+    if (VectorPoint >= VECTOR_LIMIT - 1) RemoveMessage();
     // Adiciona a mensagem no ponteiro.
     MenssagesToSend[VectorPoint].message = message;
     MenssagesToSend[VectorPoint].code = code;
