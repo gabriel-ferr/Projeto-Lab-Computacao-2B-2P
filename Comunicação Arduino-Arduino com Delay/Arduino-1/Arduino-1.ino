@@ -43,7 +43,7 @@
   } Message;
   /* -------------------------------------------------------------------------------------------- */
   /* - Variáveis do sistema de delay.                                                             */
-  // Registra o tempo de funcionamento do Arduino. Possui um limite de 40 dias antes de resetar de acordo com a documentação do Arduino.
+  // Registra o tempo de funcionamento do Arduino. Possui um limite de apoximadamente 50 dias antes de resetar de acordo com a documentação do Arduino.
   unsigned long Time;
   // Vetor de registro das mensagens a serem enviadas pelo arduino.
   Message MenssagesToSend[VECTOR_LIMIT];
