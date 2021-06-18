@@ -64,6 +64,10 @@
     // Converte o valor do buffer para Inteiro.
     unsigned long _buffer = (unsigned long) (Serial.readString().toInt());
 
+    // Se o valor do '_buffer' for '0' our inferior a 10000000 significa que pode ser ignorado.
+    if ((_buffer == 0) or (_buffer < 10000)) return;
+
+    // Informa o recebimento da informação.
     Serial.print("RECEIVED: ");
     Serial.print(_buffer);
 
