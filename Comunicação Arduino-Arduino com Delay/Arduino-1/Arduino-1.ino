@@ -69,8 +69,6 @@
     while (!Serial){
       ; // Força a espera da porta serial ser conectada.
     }
-    // Inicializa o tempo de funcionamento do Arduino;
-    Time = millis();
     // Coloca o ponteiro do vetor na posição [0].
     VectorPoint = 0;
     // Inicializa a estrutura de dados.
@@ -81,6 +79,12 @@
       MenssagesToSend[i].to = -1;
       MenssagesToSend[i].timeToSend = 2592000;  // Equivalente ao funcionamento do sistema por 30 dias.
     }
+    // Inicializa o tempo de funcionamento do Arduino;
+    Time = millis();
+    // Informa que o sistema foi inicializado e está pronto para execução.
+    Serial.print("[SYSTEM] System booted sucessfully in ");
+    Serial.print(Time);
+    Serial.println("ms.");
   }
   
   /* -------------------------------------------------------------------------------------------- */
@@ -89,23 +93,27 @@
   {
     // Atualiza o valor de tempo.
     Time = millis();
-    // Verifica a existência de dados do monitor serial, se existirem, manda para o tratamento.
-    if(Serial.available() > 0) SerialManager();
+    // Pega o valor escrito no monitor serial.
+    String messageReceiver = Serial.readString();
+    // Repassa para o tratamento.
+    SerialManager(messageReceiver);
+    
     // Faz a validação de envios do programa.
     TimeVerify();
-    // Efetua um delay de 100ms.
-    delay(100);
+
+    // Delay de sistema.
+    delay(500);
   }
   /* -------------------------------------------------------------------------------------------- */
   /* Faz o gerenciamento das mensagens adquidas do monitor serial.                                */
-  void SerialManager()
+  void SerialManager(String message)
   {
-    //  Captura a string vinda do Monitor Serial.
-    String message = Serial.readString();
-    //   Deixa todo o comando em letras minúsculas.
-    message.toLowerCase();
     //   Remove as letras anteriores e posteriores do comando.
     message.trim();
+    //  Verifica se existe algo na mensagem.
+    if (message == "") return;
+    //   Deixa todo o comando em letras minúsculas.
+    message.toLowerCase();
     //   Verifica o início da mensagem e repassa para a função responsável por organizar o envio.
     if(message.startsWith("teste")) Print("teste", message);
   }
@@ -121,6 +129,14 @@
     MenssagesToSend[VectorPoint].code = code;
     MenssagesToSend[VectorPoint].to = to;
     MenssagesToSend[VectorPoint].timeToSend = Time + DELAY;
+    // Informa o registro do comando.
+    Serial.print("[SYSTEM] Command [");
+    Serial.print(message);
+    Serial.print("] registered at position [");
+    Serial.print(VectorPoint);
+    Serial.print("] in ");
+    Serial.print(Time);
+    Serial.println("ms.");
     // Move o ponteiro para a próxima posição.
     VectorPoint++;
   }
@@ -146,16 +162,27 @@
     MenssagesToSend[VECTOR_LIMIT - 1].timeToSend = 2592000;  // Equivalente ao funcionamento do sistema por 30 dias.
     // Move o ponteiro do vetor.
     VectorPoint--;
-    
   }
 
   /* -------------------------------------------------------------------------------------------- */
   /* Laço de repetição do loop.                                                                   */
   void TimeVerify()
   {
+    // Verifica se a mensagem no topo da cadeia deve ou não ser enviada.
     if (Time >= MenssagesToSend[0].timeToSend)
     {
+      // Efetua o envio da mensagem.
       SendTo(MenssagesToSend[0].to, MenssagesToSend[0].code, MenssagesToSend[0].message);
+      // Informa o envio da mensagem.
+      Serial.print("[SYSTEM] Code command [");
+      Serial.print(MenssagesToSend[0].code);
+      Serial.print("] sent to [A:");
+      Serial.print(MenssagesToSend[0].to);
+      Serial.print("] in (");
+      Serial.print(Time);
+      Serial.print("ms): ");
+      Serial.println(MenssagesToSend[0].message);
+      // Remove a mensagem do vetor.
       RemoveMessage();
     }
   }
@@ -192,6 +219,7 @@
             // O arduino de origem, por fim, ocupará o último digito. _buffer = (FTCC####)
     // Faz o envio da mensagem.
     Serial.print(_buffer);
+    Serial.println("");
   }
 
   /* Exemplo de função de envio. */
