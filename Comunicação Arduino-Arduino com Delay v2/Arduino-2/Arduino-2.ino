@@ -25,6 +25,10 @@
 void SendTo(int to, int code, int message);                                                                                                       //
 //  Função responsável por receber as mensagens enviadas pelos demais arduinos.                                                                   //
 void Receive();                                                                                                                                   //
+//  Função responsável pelo tratamento dos dados recebido de outro arduino.                                                                       //
+//        ~ 'code': Código da função da mensagem recebida. Simboliza o que a função HandleData deve fazer com a mensagem.                         //
+//        ~ 'message': Mensagem recebida para ser interpretada.                                                                                   //
+void HandleData(int code, int message);                                                                                                           //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Função responsável por enviar mensagens ao próximo arduino.                                                                                 */
 void SendTo(int to, int code, int message)                                                                                                        //
@@ -101,10 +105,29 @@ void Receive()                                                                  
   // CHAIN_LOOP esteja ativa ele permite o envio do Arduino de ID CHAIN_LIMIT para o Arduino de ID 1.                                             //
   if (((CHAIN_LOOP) and ((_form != (ID-1)) or (_from != CHAIN_LIMIT))) or ((!CHAIN_LOOP) and (_form != (ID-1)))) return;                          //
   //  ~ Verifica se o destino da mensagem é diferente do ID do Arduino atual. Caso for, faz a análise para o reenvio da mensagem na cadeia.       //
-  if ()
+  if (_to != ID)                                                                                                                                  //
   {                                                                                                                                               //
-    
+    //  ~ Caso o CHAIN_LOOP esteja desligado, ele ignora destinos anteriores na cadeia.                                                           //
+    if ((!CHAIN_LOOP) and ((_to < ID) and (_to != 0))) return;                                                                                    //
+    //  ~ Repassa a mensagem para o próximo arduino. Ele sempre irá ignorar mensagens que ultrapassem o limite da cadeia.                         //
+    if (_to <= CHAIN_LIMIT) SendTo(_to, _code, _message);                                                                                         //
+    //  ~ Se não for para interpretar a mensagem, ignora.                                                                                         //
+    if (_to != 0) return;                                                                                                                         //
   }                                                                                                                                               //
+  //  ~ Se a função de debug estiver ativa, faz o debug da mensagem.                                                                              //
+  if(DEBUG)                                                                                                                                       //
+  {                                                                                                                                               //
+    Serial.print("[RECEIVED]: ");                                                                                                                 //
+    Serial.print(_message);                                                                                                                       //
+    Serial.print(" from [");                                                                                                                      //
+    Serial.print(_from);                                                                                                                          //
+    Serial.print("] with code <");                                                                                                                //
+    Serial.print(_code);                                                                                                                          //
+    Serial.print("> in ");                                                                                                                        //
+    Serial.print(millis());                                                                                                                       //
+    Serial.println("ms.");                                                                                                                        //
+  }                                                                                                                                               //
+  //  ~ Envia o código para o tratamento dos dados recebidos.                                                                                     //
 }                                                                                                                                                 //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Função do loop principal do sistema.                                                                                                        */
@@ -119,5 +142,10 @@ void setup()                                                                    
   Serial.begin(9600);                                                                                                                             //
   //  ~ Faz o arduino aguardar a inicialização da comunicação Serial antes de prosseguir.                                                         //
   while(!Serial);                                                                                                                                 //
+}                                                                                                                                                 //
+/* ---------------------------------------------------------------------------------------------------------------------------------------------- */
+/*  ~ Função responsável pelo tratamento dos dados recebido de outro arduino.                                                                     */
+void HandleData(int code, int message)                                                                                                            //
+{                                                                                                                                                 //
 }                                                                                                                                                 //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
