@@ -134,6 +134,8 @@ void Receive()                                                                  
 /*  ~ Função do loop principal do sistema.                                                                                                        */
 void loop()                                                                                                                                       //
 {                                                                                                                                                 //
+  //  ~ Verifica atualizações de entrada de dados.                                                                                                //
+  if (Serial.available() > 0) Receive();                                                                                                          //
 }                                                                                                                                                 //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Função inicial do código.                                                                                                                   */
