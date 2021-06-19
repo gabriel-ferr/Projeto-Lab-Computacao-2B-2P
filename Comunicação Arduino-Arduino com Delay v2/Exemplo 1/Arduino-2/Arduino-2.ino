@@ -95,6 +95,7 @@ void Receive()                                                                  
                                                                                                                                                   //
   //  ~ Verifica a validade da mensagem recebida (se ela possui ou não um valor dentro dos limites do buffer).                                    //
   if ((_buffer < 12000000) or (((CHAIN_LOOP) and (_buffer > 98991023)) or ((!CHAIN_LOOP) and (_buffer > 89991023)))) return;                      //
+  Serial.println("H");
                                                                                                                                                   //
   //  ~ Recupera do buffer os valores de 'from', 'to', 'code' e 'message'.                                                                        //
   // A ordem de remoção pouco importa, porém, o código fará isso na ordem inversa a utilizada na construção do buffer de envio.                   //
@@ -108,17 +109,20 @@ void Receive()                                                                  
   int _message = (int) (_buffer % 10000UL);                                                                                                       //
                                                                                                                                                   //
   //  ~ Verifica se o arduino de origem é o anterior a este. Isso evita o desemparelhamento das mensagens, pois, ignora possiveis erros. Caso a   //
-  // CHAIN_LOOP esteja ativa ele permite o envio do Arduino de ID CHAIN_LIMIT para o Arduino de ID 1.                                             //
-  if (((CHAIN_LOOP) and ((_from != (ID-1)) or (_from != CHAIN_LIMIT))) or ((!CHAIN_LOOP) and (_from != (ID-1)))) return;                          //
+  // CHAIN_LOOP esteja ativa ele permite o envio do Arduino de ID CHAIN_LIMIT para um Arduino de ID inferior.                                     //
+  if(((!CHAIN_LOOP) and (_from != ID - 1)) or ((CHAIN_LOOP) and ((_from != ID - 1) or (_from == CHAIN_LIMIT)))) return;                           //
+  Serial.println("A");
   //  ~ Verifica se o destino da mensagem é diferente do ID do Arduino atual. Caso for, faz a análise para o reenvio da mensagem na cadeia.       //
   if (_to != ID)                                                                                                                                  //
   {                                                                                                                                               //
     //  ~ Caso o CHAIN_LOOP esteja desligado, ele ignora destinos anteriores na cadeia.                                                           //
     if ((!CHAIN_LOOP) and ((_to < ID) and (_to != 0))) return;                                                                                    //
+    Serial.println("B");
     //  ~ Repassa a mensagem para o próximo arduino. Ele sempre irá ignorar mensagens que ultrapassem o limite da cadeia.                         //
     if (_to <= CHAIN_LIMIT) SendTo(_to, _code, _message);                                                                                         //
     //  ~ Se não for para interpretar a mensagem, ignora.                                                                                         //
     if (_to != 0) return;                                                                                                                         //
+    Serial.println("C");
   }                                                                                                                                               //
   //  ~ Se a função de debug estiver ativa, faz o debug da mensagem.                                                                              //
   if(DEBUG)                                                                                                                                       //
