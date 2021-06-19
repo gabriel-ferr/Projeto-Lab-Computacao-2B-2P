@@ -7,6 +7,7 @@
 #define CHAIN_LIMIT 2                                                                                                                             //
 //  Determina que os arduinos estão ligados em loop. Marque isso se você quiser enviar do Arduino de ID 'CHAIN_LIMIT' para um de ID inferior.     //
 //    Caso 'true' ativa a fução; caso 'false' desativa.                                                                                           //
+//  !~~! O SISTEMA DE CHAIN_LOOP NÃO ESTÁ FUNCIONANDO DEVIDAMENTE, RECOMENDA-SE NÃO UTILIZÁ-LO.                                                   //
 #define CHAIN_LOOP false                                                                                                                          //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Definições locais de Configuração da Placa.                                                                                                 */
@@ -15,6 +16,7 @@
 //  Configuração do modo de Debug. Caso 'true' ativa; caso 'false' desativa.                                                                      //
 //    O Debug exibe no Monitor Serial as execuções. Como resultado, ele envia essas mensagens para o próximo arduino que as ignora, contudo,      //
 //    isso pode gerar interferência, então, evite mantê-lo ativado.                                                                               //
+//  !~~! O DEBUG PROVOCA UM ATRAZO NO FUNCIONAMENTO DO CÓDIGO, ALÉM DE POSSIVEIS PERDAS DE INFORMAÇÃO. PORTANTO, EVITE UTILIZA-LO FUNCIONALMENTE. //
 #define DEBUG true                                                                                                                                //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Inicializa as funções de comunicação I2C.                                                                                                   */
@@ -63,6 +65,10 @@ void SendTo(int to, int code, int message)                                      
   //  Assim, a mensagem ocupará uma quantidade de 8 digitos do long, podendo variar de 12.000.000 a 89.991.023 com o CHAIN_LOOP desativado ou     //
   // 98.991.023 com o CHAIN_LOOP ativado.                                                                                                         //
                                                                                                                                                   //
+  //  ~ Por fim, faz o envio da mensagem.                                                                                                         //
+  Serial.print(_buffer);                                                                                                                          //
+  if(DEBUG) Serial.println("");                                                                                                                   //
+                                                                                                                                                  //
   //  ~ Se o modo de debug estiver habilitado, ele realiza o debug da mensagem.                                                                   //
   if(DEBUG)                                                                                                                                       //
   {                                                                                                                                               //
@@ -77,8 +83,6 @@ void SendTo(int to, int code, int message)                                      
     Serial.println("ms.");                                                                                                                        //
   }                                                                                                                                               //
                                                                                                                                                   //
-  //  ~ Por fim, faz o envio da mensagem.                                                                                                         //
-  Serial.print(_buffer);                                                                                                                          //
 }                                                                                                                                                 //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Função responsável por receber as mensagens enviadas pelos demais arduinos.                                                                 */
@@ -102,8 +106,8 @@ void Receive()                                                                  
   int _message = (int) (_buffer % 10000UL);                                                                                                       //
                                                                                                                                                   //
   //  ~ Verifica se o arduino de origem é o anterior a este. Isso evita o desemparelhamento das mensagens, pois, ignora possiveis erros. Caso a   //
-  // CHAIN_LOOP esteja ativa ele permite o envio do Arduino de ID CHAIN_LIMIT para o Arduino de ID 1.                                             //
-  if (((CHAIN_LOOP) and ((_from != (ID-1)) or (_from != CHAIN_LIMIT))) or ((!CHAIN_LOOP) and (_from != (ID-1)))) return;                          //
+  // CHAIN_LOOP esteja ativa ele permite o envio do Arduino de ID CHAIN_LIMIT para um Arduino de ID inferior.                                     //
+  if(((!CHAIN_LOOP) and (_from != ID - 1)) or ((CHAIN_LOOP) and ((_from != ID - 1) or (_from == CHAIN_LIMIT)))) return;                           //
   //  ~ Verifica se o destino da mensagem é diferente do ID do Arduino atual. Caso for, faz a análise para o reenvio da mensagem na cadeia.       //
   if (_to != ID)                                                                                                                                  //
   {                                                                                                                                               //
@@ -150,5 +154,12 @@ void setup()                                                                    
 /*  ~ Função responsável pelo tratamento dos dados recebido de outro arduino.                                                                     */
 void HandleData(int code, int message)                                                                                                            //
 {                                                                                                                                                 //
+  //  ~ Verifica o que deve fazer com a mensagem recebida baseando-se no código de função que foi recebido junto dela.                            //
+  switch(code)                                                                                                                                    //
+  {                                                                                                                                               //
+    //  ~ Altera o estado do LED entre ligado e desligado conforme recebido.                                                                      //
+    case 0:                                                                                                                                       //
+      break;                                                                                                                                      //
+  }                                                                                                                                               //
 }                                                                                                                                                 //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
