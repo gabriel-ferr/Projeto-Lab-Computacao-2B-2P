@@ -103,7 +103,7 @@ void Receive()                                                                  
                                                                                                                                                   //
   //  ~ Verifica se o arduino de origem é o anterior a este. Isso evita o desemparelhamento das mensagens, pois, ignora possiveis erros. Caso a   //
   // CHAIN_LOOP esteja ativa ele permite o envio do Arduino de ID CHAIN_LIMIT para o Arduino de ID 1.                                             //
-  if (((CHAIN_LOOP) and ((_form != (ID-1)) or (_from != CHAIN_LIMIT))) or ((!CHAIN_LOOP) and (_form != (ID-1)))) return;                          //
+  if (((CHAIN_LOOP) and ((_from != (ID-1)) or (_from != CHAIN_LIMIT))) or ((!CHAIN_LOOP) and (_from != (ID-1)))) return;                          //
   //  ~ Verifica se o destino da mensagem é diferente do ID do Arduino atual. Caso for, faz a análise para o reenvio da mensagem na cadeia.       //
   if (_to != ID)                                                                                                                                  //
   {                                                                                                                                               //
@@ -128,6 +128,7 @@ void Receive()                                                                  
     Serial.println("ms.");                                                                                                                        //
   }                                                                                                                                               //
   //  ~ Envia o código para o tratamento dos dados recebidos.                                                                                     //
+  HandleData(_code, _message);                                                                                                                    //
 }                                                                                                                                                 //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Função do loop principal do sistema.                                                                                                        */
