@@ -338,7 +338,6 @@ void HandleData(int code, int message)                                          
   //  ~ Verifica o que deve fazer com a mensagem recebida baseando-se no código de função que foi recebido junto dela.                            //
   switch(code)                                                                                                                                    //
   {                                                                                                                                               //
-    //  ~ Altera o estado do LED entre ligado e desligado conforme recebido.                                                                      //
     case 0:                                                                                                                                       //
       break;                                                                                                                                      //
   }                                                                                                                                               //
