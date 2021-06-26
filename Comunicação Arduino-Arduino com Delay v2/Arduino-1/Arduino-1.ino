@@ -65,7 +65,7 @@ void HandleData(int code, int message);                                         
 //      ~ 'message': Mensagem a ser enviada.                                                                                                      //
 void AddMessage(int to, int code, int message);                                                                                                   //
 //  Função responsável por preparar o sistema de delay para o envio da mensagem, limpar a posição da pilha e avançar para a próxima posição.      //
-void PrepareToSend();                                                                                                                             //
+void PrepareToSend();                                                                                                                             //  
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Função responsável por enviar mensagens ao próximo arduino.                                                                                 */
 void SendTo(int to, int code, int message)                                                                                                        //
