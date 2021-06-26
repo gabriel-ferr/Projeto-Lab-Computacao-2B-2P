@@ -40,10 +40,6 @@
 #define DELAY_VECTOR_LENGTH 50                                                                                                                    //
 //  Define o delay para envio das mensagens em 'ms'.                                                                                              //
 #define DELAY 5000                                                                                                                                //
-//  Tempo extra em situações de sobrecarga de mensagens.                                                                                          //
-#define DELAY_SLEEP 50                                                                                                                            //
-//  Tempo de intervalo para resetar o acumulador de sobrecarga.                                                                                   //
-#define RESET_SLEEP 500                                                                                                                           //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Estruturas utilizadas no código.                                                                                                            */
 //  Define a estrutura responsável por representar uma mensagem no sistema de Delay..                                                             //
@@ -66,10 +62,6 @@ Message MessageToSend[DELAY_VECTOR_LENGTH];                                     
 int AddCursor;                                                                                                                                    //
 //  Ponteiro do vetor 'MessageToSend' em que um elemento deve ser lido, enviado e excluído.                                                       //
 int SendCursor;                                                                                                                                   //
-//  Multiplicador de sobrecarga do delay.                                                                                                         //
-int SleepMultiplyer;                                                                                                                              //
-//  Momento de envio da última mensagem enviada em 'ms'.                                                                                          //
-unsigned long LastMessage;                                                                                                                        //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Inicializa as funções de comunicação I2C.                                                                                                   */
 //  Função responsável por enviar mensagens ao próximo arduino.                                                                                   //
@@ -203,9 +195,7 @@ void AddMessage(int to, int code, int message)                                  
   MessageToSend[AddCursor].to = to;                                                                                                               //
   MessageToSend[AddCursor].code = code;                                                                                                           //
   MessageToSend[AddCursor].message = message;                                                                                                     //
-  MessageToSend[AddCursor].timeToSend = (millis());// + RESET_SLEEP + (SleepMultiplyer * DELAY_SLEEP));                                               //
-  //  ~ Atualiza o tempo de envio da última mensagem.                                                                                             //
-  LastMessage = millis();                                                                                                                         //
+  MessageToSend[AddCursor].timeToSend = millis();                                                                                                 //
   //  ~ Move o cursor de adição para a próxima posição.                                                                                           //
   AddCursor++;                                                                                                                                    //
   //  ~ Se o ponteiro de adição estourar o limite do vetor, volta para a primeira posição.                                                        //
@@ -300,10 +290,6 @@ void setup()                                                                    
   AddCursor = 0;                                                                                                                                  //
   //  ~ Seta a posição inicial do cursor responsável por selecionar a mensagem a ser enviada.                                                     //
   SendCursor = 0;                                                                                                                                 //
-  //   ~ Inicializa o multiplicador por 0.                                                                                                        //
-  SleepMultiplyer = 0;                                                                                                                            //
-  //  ~ Define o valor inicial do tempo de envio da última mensagem no limite da variável.                                                        //
-  LastMessage = 2592000000;                                                                                                                       //
                                                                                                                                                   //
   //  ~ Define o modo de entrada (INPUT) para as respectivas portas.                                                                              //
   //  ~ Botão que comando o robo em ir para a frente.                                                                                             //
