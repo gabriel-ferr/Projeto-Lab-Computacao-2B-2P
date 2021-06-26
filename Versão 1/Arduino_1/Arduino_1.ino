@@ -195,7 +195,7 @@ void AddMessage(int to, int code, int message)                                  
   MessageToSend[AddCursor].to = to;                                                                                                               //
   MessageToSend[AddCursor].code = code;                                                                                                           //
   MessageToSend[AddCursor].message = message;                                                                                                     //
-  MessageToSend[AddCursor].timeToSend = millis();                                                                                                 //
+  MessageToSend[AddCursor].timeToSend = millis() + DELAY;                                                                                         //
   //  ~ Move o cursor de adição para a próxima posição.                                                                                           //
   AddCursor++;                                                                                                                                    //
   //  ~ Se o ponteiro de adição estourar o limite do vetor, volta para a primeira posição.                                                        //
