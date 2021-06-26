@@ -203,7 +203,7 @@ void AddMessage(int to, int code, int message)                                  
   MessageToSend[AddCursor].to = to;                                                                                                               //
   MessageToSend[AddCursor].code = code;                                                                                                           //
   MessageToSend[AddCursor].message = message;                                                                                                     //
-  MessageToSend[AddCursor].timeToSend = (millis() + RESET_SLEEP + (SleepMultiplyer * DELAY_SLEEP));                                               //
+  MessageToSend[AddCursor].timeToSend = (millis());// + RESET_SLEEP + (SleepMultiplyer * DELAY_SLEEP));                                               //
   //  ~ Atualiza o tempo de envio da última mensagem.                                                                                             //
   LastMessage = millis();                                                                                                                         //
   //  ~ Move o cursor de adição para a próxima posição.                                                                                           //
@@ -241,7 +241,7 @@ int pot_camera = 0;                                                             
 void loop()                                                                                                                                       //
 {                                                                                                                                                 //
   //  ~ Verifica se a última mensagem foi enviada a um tempo considerável para reiniciar a dormência.                                             //
-  if (LastMessage <= (millis() + (SleepMultiplyer * DELAY_SLEEP) + RESET_SLEEP)) { LastMessage = 2592000000; SleepMultiplyer = 0; }               //
+  //if (LastMessage <= (millis() + (SleepMultiplyer * DELAY_SLEEP) + RESET_SLEEP)) { LastMessage = 2592000000; SleepMultiplyer = 0; }               //
                                                                                                                                                   //
   //  ~ Declara as variáveis de estado locais.                                                                                                    //
   bool _bot_auto_mov = bot_auto_mov;                                                                                                              //
