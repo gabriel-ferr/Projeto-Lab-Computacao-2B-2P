@@ -8,7 +8,7 @@
 #define ID 1                                                                                                                                      //
 //  Configura o ID do último arduino utilizado na cadeia. Isso evita repassar mensagens para o arduino na sequência.                              //
 //    Essa configuração não está presente no Arduino de ID 1, pois, ele não possuí a função de recebimento de dados.                              //
-#define CHAIN_LIMIT 2                                                                                                                             //
+#define CHAIN_LIMIT 4                                                                                                                             //
 //  Determina que os arduinos estão ligados em loop. Marque isso se você quiser enviar do Arduino de ID 'CHAIN_LIMIT' para um de ID inferior.     //
 //    Caso 'true' ativa a fução; caso 'false' desativa.                                                                                           //
 //  !~~! O SISTEMA DE CHAIN_LOOP NÃO ESTÁ FUNCIONANDO DEVIDAMENTE, RECOMENDA-SE NÃO UTILIZÁ-LO.                                                   //
@@ -16,7 +16,7 @@
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Definições locais de Configuração da Placa.                                                                                                 */
 //  Porta de leitura do potenciometro responsável pelo controle da câmera.                                                                        //
-#define CAM_CONTROL A0                                                                                                                            //
+#define CAM_CONTROL A5                                                                                                                            //
 //  Porta do botão para frente.                                                                                                                   //
 #define BUTTON_UP 2                                                                                                                               //
 //  Porta do botão para trás.                                                                                                                     //
@@ -232,17 +232,53 @@ void PrepareToSend()                                                            
 //  Indica o estado de envio do modo de operação do robo, entre automático e manual.                                                              //
 //  O modo default é automático.                                                                                                                  //
 bool bot_auto_mov;                                                                                                                                //
+//  Lê a direção indicada no modo de controle manual.                                                                                             //
+int bot_direction = 0;                                                                                                                            //
+//  Lê o valor induzido pelo potenciomêtro para indicar a posição da câmera.                                                                      //
+int pot_camera = 0;                                                                                                                               //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Função do loop principal do sistema.                                                                                                        */
 void loop()                                                                                                                                       //
 {                                                                                                                                                 //
   //  ~ Verifica se a última mensagem foi enviada a um tempo considerável para reiniciar a dormência.                                             //
   if (LastMessage <= (millis() + (SleepMultiplyer * DELAY_SLEEP) + RESET_SLEEP)) { LastMessage = 2592000000; SleepMultiplyer = 0; }               //
+                                                                                                                                                  //
+  //  ~ Declara as variáveis de estado locais.                                                                                                    //
+  bool _bot_auto_mov = bot_auto_mov;                                                                                                              //
+  int _bot_direction = bot_direction;                                                                                                             //
+  int _pot_camera = pot_camera;                                                                                                                   //
+                                                                                                                                                  //
+  //  ~ Verifica atualizações de entrada de dados.                                                                                                //
+  if (Serial.available() > 0) Receive();                                                                                                          //
+                                                                                                                                                  //
+  //  ~ Verifica atualizações de entrada.                                                                                                         //
+  //  ~ Verifica se o botão de reset foi ou não apertado.                                                                                         //
+  if (digitalRead(BUTTON_RESET) == HIGH) { AddMessage(0, 0, 1); while(digitalRead(BUTTON_RESET) == HIGH); }                                       //
+  //  ~ Verifica altera troca de posição do botão de modo de movimentação do robo.                                                                //
+  if (digitalRead(INT_MOVE) == HIGH) { bot_auto_mov = true; } else { bot_auto_mov = false; }                                                      //
+  //  ~ Se o modo automático estiver desligado (modo manual ativado), verifica alteração dos botões de controle.                                  //
+  if (!bot_auto_mov)                                                                                                                              //
+  {                                                                                                                                               //
+    //  ~ Verifica alteração do botão para frente.                                                                                                //
+    if (digitalRead(BUTTON_UP) == HIGH) { bot_direction = 1; while(digitalRead(BUTTON_UP) == HIGH); }                                             //
+    //  ~ Verifica alteração do botão para trás.                                                                                                  //
+    else if (digitalRead(BUTTON_DOWN) == HIGH) { bot_direction = 2; while(digitalRead(BUTTON_DOWN) == HIGH); }                                    //
+    //  ~ Verifica alteração do botão para a esquerda.                                                                                            //
+    else if (digitalRead(BUTTON_LEFT) == HIGH) { bot_direction = 3; while(digitalRead(BUTTON_LEFT) == HIGH); }                                    //
+    //  ~ Verifica alteração do botão para a direita.                                                                                             //
+    else if (digitalRead(BUTTON_RIGHT) == HIGH) { bot_direction = 4; while(digitalRead(BUTTON_RIGHT) == HIGH); }                                  //
+  }                                                                                                                                               //
+  //  ~ Verifica a posição do potenciometro para enviar uma atualização sobre o controle da câmera.                                               //
+  pot_camera = analogRead(CAM_CONTROL);                                                                                                           //
+                                                                                                                                                  //
+  //  ~ Verifica a atualização de estado das variáveis de estado.                                                                                 //
+  if (bot_auto_mov != _bot_auto_mov) { AddMessage(3, 1, (int) bot_auto_mov); }                                                                    //
+  if (bot_direction != _bot_direction) { AddMessage(3, 2, bot_direction); }                                                                       //
+  if (pot_camera != _pot_camera) { AddMessage(2, 3, pot_camera); }                                                                                //
+                                                                                                                                                  //
   //  ~ Verifica se a mensagem selecionada no ponteiro de envio do vetor de Delay deve ou não ser enviada. Caso deva, chama a função responsável  //
   // por preparar o envio.                                                                                                                        //
   if (MessageToSend[SendCursor].timeToSend <= millis()) PrepareToSend();                                                                          //
-  //  ~ Verifica atualizações de entrada de dados.                                                                                                //
-  if (Serial.available() > 0) Receive();                                                                                                          //
 }                                                                                                                                                 //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Função inicial do código.                                                                                                                   */
@@ -281,7 +317,7 @@ void setup()                                                                    
   //  ~ Botão que comando o robo em realizar a alteração de controle entre automático e manual.                                                   //
   pinMode(INT_MOVE, INPUT);                                                                                                                       //
   //  ~ Botão que comando o robo em ir para a frente.                                                                                             //
-  pinMode(BUTTON_UP, INPUT);                                                                                                                      //
+  pinMode(BUTTON_RESET, INPUT);                                                                                                                   //
                                                                                                                                                   //
   //  ~ Carrega as definições iniciais do robo.                                                                                                   //
   bot_auto_mov = BOT_MODE;                                                                                                                        //
