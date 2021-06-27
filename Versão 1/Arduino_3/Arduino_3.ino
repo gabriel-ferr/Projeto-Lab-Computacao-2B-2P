@@ -379,6 +379,17 @@ void loop()                                                                     
   //  ~ Ignora qualquer função local, exceto relacionada a comunicação, caso o robo esteja desligado.                                             //
   if (power_on)                                                                                                                                   //
   {                                                                                                                                               //
+    //  ~ Se for recebido um comando de movimentação, ele executa antes de analizar a operação local.                                             //
+    if (_robot_direction != robot_direction)                                                                                                      //
+    {                                                                                                                                             //
+      //  ~ Calcula o tempo de movimentação anterior com base no tipo da movimentação anterior.                                                   //
+      if (_robot_direction == FRENTE) last_move_time = millis() - start_move_time;                                                                //
+      else last_move_time = 0;                                                                                                                    //
+      //  ~ Altera a direção do robo.                                                                                                             //
+      Translate(robot_direction);                                                                                                                 //
+      //  ~ Informa que a alteração JÁ FOI EXECUTADA.                                                                                             //
+      _robot_direction = robot_direction;                                                                                                         //
+    }                                                                                                                                             //
     //  ~ Primeiro o robo irá trabalhar com sua movimentação, então, ele trata do caso para as 4 direções em que pode se mover.                   //
     switch (robot_direction)                                                                                                                      //
     {                                                                                                                                             //
@@ -645,6 +656,8 @@ void HandleData(int code, int message)                                          
     case 2:                                                                                                                                       //
       if ((robot_direction == message) or (robot_auto_move)) break;                                                                               //
       robot_direction = message;                                                                                                                  //
+      //  ~ Calcula o tempo de movimentação anterior com base no tipo da movimentação anterior.                                                   //
+      
       break;                                                                                                                                      //
     //  ~ Informa se o robo deve estar funcionando ou não. Quem irá coordenar isso será o Arduino 2.                                              //
     case 4:                                                                                                                                       //
