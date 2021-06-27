@@ -35,7 +35,7 @@
 //    Cada elemento no vetor ocupara 20 Bytes, portanto, é importante tomar cuidado ao dimensionar o vetor.                                       //
 #define DELAY_VECTOR_LENGTH 50                                                                                                                    //
 //  Define o delay para envio das mensagens em 'ms'.                                                                                              //
-#define DELAY 5000                                                                                                                                //
+#define DELAY 1500                                                                                                                                //
 //  Tempo extra em situações de sobrecarga de mensagens.                                                                                          //
 #define DELAY_SLEEP 50                                                                                                                            //
 //  Tempo de intervalo para resetar o acumulador de sobrecarga.                                                                                   //
