@@ -253,7 +253,7 @@ void loop()                                                                     
                                                                                                                                                   //
   //  ~ Verifica atualizações de entrada.                                                                                                         //
   //  ~ Verifica se o botão de reset foi ou não apertado.                                                                                         //
-  if (digitalRead(BUTTON_RESET) == HIGH) { AddMessage(0, 0, 1); while(digitalRead(BUTTON_RESET) == HIGH); }                                       //
+  if (digitalRead(BUTTON_RESET) == HIGH) { AddMessage(2, 0, 1); while(digitalRead(BUTTON_RESET) == HIGH); }                                       //
   //  ~ Verifica altera troca de posição do botão de modo de movimentação do robo.                                                                //
   if (digitalRead(INT_MOVE) == HIGH) { bot_auto_mov = true; } else { bot_auto_mov = false; }                                                      //
   //  ~ Se o modo automático estiver desligado (modo manual ativado), verifica alteração dos botões de controle.                                  //
