@@ -327,7 +327,7 @@ void setup()                                                                    
   SendTo(2, 3, pot_camera);                                                                                                                       //
   //  ~ Espera alguns milissegundos.                                                                                                              //
   //  ~ Informa o robo que é para ele ligar (o default é registrado no sistema como desligado por padrão).                                        //
-  AddMessage(0, 0, 1);                                                                                                                            //
+  SendTo(2, 0, 1);                                                                                                                                //
   //  ~ Espera alguns milissegundos.                                                                                                              //
 }                                                                                                                                                 //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
