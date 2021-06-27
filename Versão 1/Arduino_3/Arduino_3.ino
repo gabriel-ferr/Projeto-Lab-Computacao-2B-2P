@@ -15,7 +15,7 @@
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Definições locais de Configuração da Placa.                                                                                                 */
 //  Porta do sensor ultrassônico, responsável por determinar a existência de objetos a frente. Porta de emissão de eco.                           //
-#define ULTRASOUND_SENSOR_TIGGER 4                                                                                                                //
+#define ULTRASOUND_SENSOR_TRIGGER 4                                                                                                               //
 //  Porta do sensor ultrassônico, responsável por determinar a existência de objetos a frente. Porta de recepção de eco.                          //
 #define ULTRASOUND_SENSOR_ECHO 5                                                                                                                  //
 //  Motor Direito, entrada padrão.                                                                                                                //
@@ -45,6 +45,23 @@
 #define DELAY_SLEEP 50                                                                                                                            //
 //  Tempo de intervalo para resetar o acumulador de sobrecarga.                                                                                   //
 #define RESET_SLEEP 500                                                                                                                           //
+/* ---------------------------------------------------------------------------------------------------------------------------------------------- */
+/*  ~ Configurações de movimentação do robo.                                                                                                      */
+//  Velocidade do som no ar em m/s.                                                                                                               //
+//    No caso, utilizamos a velocidade do som no ar na CATP (Condições Ambientes de Temperatura e Pressão), sendo assim, uma temperatura de 25°C. //
+#define SOUND_SPEED_IN_AIR 346.3                                                                                                                  //
+//  Distância mínima em que o objeto deve estar para o robo executar a frenagem e trocar de sentido.                                              //
+//    Deve ser inserido o valor em 'cm'.                                                                                                          //
+#define MIN_DISTANCE 12                                                                                                                           //
+//  Intervalo de tempo entre os quais as medidas devem ser efetuadas.                                                                             //
+//    O valor informado deve estar em 'ms'.                                                                                                       //
+#define MEASURING_RANGE_TIME 1000                                                                                                                 //
+//  Intervalo de tempo para o robo realizar sua rotação.                                                                                          //
+//    O valor informado deve estar em 'ms'.                                                                                                       //
+#define ROTATE_RANGE_TIME 2000                                                                                                                    //
+//  Intervalo para a abertura ou fechamento dos paineis solares.                                                                                  //
+//    O valor informado deve estar em 'ms'.                                                                                                       //
+#define PAINEL_SOLAR_FUNCTIONS_RANGE_TIME 3000                                                                                                    //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Estruturas utilizadas no código.                                                                                                            */
 //  Define a estrutura responsável por representar uma mensagem no sistema de Delay..                                                             //
@@ -92,7 +109,14 @@ void HandleData(int code, int message);                                         
 //      ~ 'message': Mensagem a ser enviada.                                                                                                      //
 void AddMessage(int to, int code, int message);                                                                                                   //
 //  Função responsável por preparar o sistema de delay para o envio da mensagem, limpar a posição da pilha e avançar para a próxima posição.      //
-void PrepareToSend();                                                                                                                             //  
+void PrepareToSend();                                                                                                                             //
+/* ---------------------------------------------------------------------------------------------------------------------------------------------- */
+/*  ~ Inicializa as funções de movimentação do robo.                                                                                              */
+//  Responsável por informar se há ou não um objeto na distância mínima prevista nas configurações.                                               //
+bool CheckObstacles();                                                                                                                            //
+//  Responsável pela movimentação própriamente dita.                                                                                              //
+//      ~ 'robot_direction': direção para a qual o robo deve se dirigir.                                                                          //
+void Translate(int robot_direction);                                                                                                              //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Função responsável por enviar mensagens ao próximo arduino.                                                                                 */
 void SendTo(int to, int code, int message)                                                                                                        //
@@ -144,7 +168,6 @@ void SendTo(int to, int code, int message)                                      
     Serial.print(millis());                                                                                                                       //
     Serial.println("ms.");                                                                                                                        //
   }                                                                                                                                               //
-                                                                                                                                                  //
 }                                                                                                                                                 //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Função responsável por receber as mensagens enviadas pelos demais arduinos.                                                                 */
@@ -229,6 +252,32 @@ void PrepareToSend()                                                            
   if (SendCursor >= DELAY_VECTOR_LENGTH) SendCursor = 0;                                                                                          //
 }                                                                                                                                                 //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
+/*  ~ Inicializa as funções do sensor ultrassônico.                                                                                               */
+bool CheckObstacles()                                                                                                                             //
+{                                                                                                                                                 //
+  //  ~ Envia um sinal pelo emissor Trigger do sensor ultrassônico.                                                                               //
+  digitalWrite(ULTRASOUND_SENSOR_TRIGGER, HIGH);                                                                                                  //
+  //  ~ O sinal deve ser enviado por pelo menos 10 microssegundos para poder ser reconhecido pelo sensor.                                         //
+  delayMicroseconds(10);                                                                                                                          //
+  //  ~ Interrompe o envio do sinal.                                                                                                              //
+  digitalWrite(ULTRASOUND_SENSOR_TRIGGER, LOW);                                                                                                   //
+                                                                                                                                                  //
+  //  ~ Captura em uma variável long o tempo de retorno.                                                                                          //
+  unsigned long timer = pulseIn(ULTRASOUND_SENSOR_ECHO, HIGH);                                                                                    //
+                                                                                                                                                  //
+  //  ~ Calcula a distância baseando-se na velocidade do som no ar.                                                                               //
+  float distance = (timer * (SOUND_SPEED_IN_AIR / 100.0)) / 2.0;                                                                                  //
+                                                                                                                                                  //
+  //  ~ Por fim, retorna conforme a distância calculada está relacionada com o valor mínimo aceitável.                                            //
+  if (distance <= MIN_DISTANCE) return true; else return false;                                                                                   //
+}                                                                                                                                                 //
+/* ---------------------------------------------------------------------------------------------------------------------------------------------- */
+/*  ~ Responsável pela movimentação própriamente dita.                                                                                            */
+void Translate(int robot_direction)                                                                                                               //
+{                                                                                                                                                 //
+  
+}                                                                                                                                                 //
+/* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Variáveis de estado do robo.                                                                                                                */
 //  Indica se o robo está ligado ou desligado.                                                                                                    //
 //    Por padrão o robo inicializa desligado.                                                                                                     //
@@ -242,14 +291,72 @@ int robot_direction = 1;                                                        
 unsigned long start_move_time = 0;                                                                                                                //
 //  Instante em 'ms' da atividade anterior executada pelo robo.                                                                                   //
 unsigned long last_move_time = 0;                                                                                                                 //
+//  Registro da última verificação de distância.                                                                                                  //
+unsigned long last_time_distance_calc = 0;                                                                                                        //
+//  Instante da última atividade do painel solar.                                                                                                 //
+unsigned long start_painel_solar_function = 0;                                                                                                    //
+//  Informa se o painel solar deve ser aberto.                                                                                                    //
+bool opening_painel_solar = false;                                                                                                                //
+//  Informa se o painel solar deve ser fechado.                                                                                                   //
+bool closing_painel_solar = false;                                                                                                                //
+//  Informa se o painel solar está totalmente aberto.                                                                                             //
+bool painel_solar_open = false;                                                                                                                   //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Função do loop principal do sistema.                                                                                                        */
 void loop()                                                                                                                                       //
 {                                                                                                                                                 //
   //  ~ Verifica se a última mensagem foi enviada a um tempo considerável para reiniciar a dormência.                                             //
   if (LastMessage <= (millis() + (SleepMultiplyer * DELAY_SLEEP) + RESET_SLEEP)) { LastMessage = 2592000000; SleepMultiplyer = 0; }               //
+                                                                                                                                                  //
+  //  ~ Declara as variáveis de estado locais.                                                                                                    //
+  bool _robot_auto_move = robot_auto_move;                                                                                                        //
+  int _robot_direction = robot_direction;                                                                                                         //
+                                                                                                                                                  //
   //  ~ Verifica atualizações de entrada de dados.                                                                                                //
   if (Serial.available() > 0) Receive();                                                                                                          //
+                                                                                                                                                  //
+  //  ~ Ignora qualquer função local, exceto relacionada a comunicação, caso o robo esteja desligado.                                             //
+  if (power_on)                                                                                                                                   //
+  {                                                                                                                                               //
+    //  ~ Verifica alterações de entrada.                                                                                                         //
+  }                                                                                                                                               //
+  else
+  {
+    //  ~ Faz com que o robo pare por completo.                                                                                                   //
+    Translate(0);                                                                                                                                 //
+    //  ~ Caso o painel solar esteja aberto, ele fecha.                                                                                           //
+    if (painel_solar_open)                                                                                                                        //
+    {                                                                                                                                             //
+      //  ~ Realiza a atualização de contexto entre abertura e fechamento do painel solar.                                                        //
+      if (!closing_painel_solar) {                                                                                                                //
+        closing_painel_solar = true;                                                                                                              //
+        if (opening_painel_solar) opening_painel_solar = false;                                                                                   //
+        start_painel_solar_function = millis();                                                                                                   //
+      }                                                                                                                                           //
+      //  ~ Se o fechamento do painel solar estiver ativo, liga os motores.                                                                       //
+      else                                                                                                                                        //
+      {                                                                                                                                           //
+        //  ~ Verifica se o tempo para o fechamento do painel solar foi ou não excedido.                                                          //
+        if (millis() >= (start_painel_solar_function + PAINEL_SOLAR_FUNCTIONS_RANGE_TIME))                                                        //
+        {                                                                                                                                         //
+          //  ~ Para o motor responsável.                                                                                                         //
+          digitalWrite(ENGINE_PAINEL_SOLAR, LOW);                                                                                                 //
+          digitalWrite(ENGINE_PAINEL_SOLAR_REVERSE, LOW);                                                                                         //
+          //  ~ Informa que o fechamento está completo.                                                                                           //
+          closing_painel_solar = false;                                                                                                           //
+          //  ~ Informa que o painel está fechado.                                                                                                //
+          painel_solar_open = false;                                                                                                              //
+        }                                                                                                                                         //
+        //  ~ Caso não tenha excedido o tempo, faz com que os motores responsáveis realizem o fechamento.                                         //
+        else                                                                                                                                      //
+        {                                                                                                                                         //
+          //  ~ Coloca a função de reversão do motor para funcionar.                                                                              //
+          digitalWrite(ENGINE_PAINEL_SOLAR, LOW);                                                                                                 //
+          digitalWrite(ENGINE_PAINEL_SOLAR_REVERSE, HIGH);                                                                                        //
+        }                                                                                                                                         //
+      }                                                                                                                                           //
+    }                                                                                                                                             //
+  }                                                                                                                                               //
   //  ~ Verifica se a mensagem selecionada no ponteiro de envio do vetor de Delay deve ou não ser enviada. Caso deva, chama a função responsável  //
   // por preparar o envio.                                                                                                                        //
   if (MessageToSend[SendCursor].timeToSend <= millis()) PrepareToSend();                                                                          //
@@ -278,6 +385,32 @@ void setup()                                                                    
   SleepMultiplyer = 0;                                                                                                                            //
   //  ~ Define o valor inicial do tempo de envio da última mensagem no limite da variável.                                                        //
   LastMessage = 2592000000;                                                                                                                       //
+                                                                                                                                                  //
+  //  ~ Define o modo de entrada (INPUT) para as respectivas portas.                                                                              //
+  //  ~ Porta de entrada do sinal enviado pelo receptor do sensor ultrassônico (ECHO).                                                            //
+  pinMode(ULTRASOUND_SENSOR_ECHO, INPUT);                                                                                                         //
+                                                                                                                                                  //
+  //  ~ Define o modo de entrada (OUTPUT) para as respectivas portas.                                                                             //
+  //  ~ Porta de saída do sinal que será emitido pelo sensor ultrassônico (TRIGGER).                                                              //
+  pinMode(ULTRASOUND_SENSOR_TRIGGER, OUTPUT);                                                                                                     //
+  //  ~ Portas de sinal do motor direito.                                                                                                         //
+  pinMode(ENGINE_RIGHT, OUTPUT);                                                                                                                  //
+  pinMode(ENGINE_RIGHT_REVERSE, OUTPUT);                                                                                                          //
+  //  ~ Portas de sinal do motor esquerdo.                                                                                                        //
+  pinMode(ENGINE_LEFT, OUTPUT);                                                                                                                   //
+  pinMode(ENGINE_LEFT_REVERSE, OUTPUT);                                                                                                           //
+  //  ~ Portas de sinal do motor do painel solar.                                                                                                 //
+  pinMode(ENGINE_PAINEL_SOLAR, OUTPUT);                                                                                                           //
+  pinMode(ENGINE_PAINEL_SOLAR_REVERSE, OUTPUT);                                                                                                   //
+                                                                                                                                                  //
+  //  ~ Pré-define os envios das portas como LOW.                                                                                                 //
+  digitalWrite(ULTRASOUND_SENSOR_TRIGGER, LOW);                                                                                                   //
+  digitalWrite(ENGINE_RIGHT, LOW);                                                                                                                //
+  digitalWrite(ENGINE_RIGHT_REVERSE, LOW);                                                                                                        //
+  digitalWrite(ENGINE_LEFT, LOW);                                                                                                                 //
+  digitalWrite(ENGINE_LEFT_REVERSE, LOW);                                                                                                         //
+  digitalWrite(ENGINE_PAINEL_SOLAR, LOW);                                                                                                         //
+  digitalWrite(ENGINE_PAINEL_SOLAR_REVERSE, LOW);                                                                                                 //
 }                                                                                                                                                 //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Função responsável pelo tratamento dos dados recebido de outro arduino.                                                                     */
@@ -288,23 +421,15 @@ void HandleData(int code, int message)                                          
   {                                                                                                                                               //
     //  ~ Informa o arduino que deve "reiniciar" (desliga se estiver ligado e liga se estiver desligado).                                         //
     case 0:                                                                                                                                       //
-      //  ~ Inverte o funciomento do robo.                                                                                                        //
       if ((bool) message) power_on = !power_on;                                                                                                   //
       break;                                                                                                                                      //
     //  ~ Informa se a movimentação do robo está em modo automático ou manual.                                                                    //
     case 1:                                                                                                                                       //
-      //  ~ Altera o modo do robo para o recebido via mensagem.                                                                                   //
       robot_auto_move = (bool) message;                                                                                                           //
       break;                                                                                                                                      //
     //  ~ Alterações de movimentação do robo.                                                                                                     //
     case 2:                                                                                                                                       //
-      //  ~ Se a operação desejada já é a em execução, ignora.                                                                                    //
       if (robot_direction == message) break;                                                                                                      //
-      //  ~ Registra o tempo de execução da operação anterior.                                                                                    //
-      last_move_time = millis() - start_move_time;                                                                                                //
-      //  ~ Altera o momento de inicialização da próxima operação como agora.                                                                     //
-      start_move_time = millis();                                                                                                                 //
-      //  ~ Altera o esquema de movimentação do robo.                                                                                             //
       robot_direction = message;                                                                                                                  //
       break;                                                                                                                                      //
   }                                                                                                                                               //
