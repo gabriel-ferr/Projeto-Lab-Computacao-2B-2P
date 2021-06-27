@@ -323,15 +323,12 @@ void setup()                                                                    
   //  ~ Coloca o robo no padrão.                                                                                                                  //
   SendTo(3, 1, (int) bot_auto_mov);                                                                                                               //
   //  ~ Espera alguns milissegundos.                                                                                                              //
-  delay(300);                                                                                                                                     //
   //  ~ Atualiza a posição da câmera.                                                                                                             //
   SendTo(2, 3, pot_camera);                                                                                                                       //
   //  ~ Espera alguns milissegundos.                                                                                                              //
-  delay(300);                                                                                                                                     //
   //  ~ Informa o robo que é para ele ligar (o default é registrado no sistema como desligado por padrão).                                        //
   AddMessage(0, 0, 1);                                                                                                                            //
   //  ~ Espera alguns milissegundos.                                                                                                              //
-  delay(400);                                                                                                                                     //
 }                                                                                                                                                 //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Função responsável pelo tratamento dos dados recebido de outro arduino.                                                                     */
