@@ -1,6 +1,15 @@
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Configurações do modo de inicialização do robo.                                                                                             */
-
+//  Definição do valor que indica que o robo deve parar.                                                                                          //
+#define PARAR 0                                                                                                                                   // 
+//  Definição do valor que indica que o robo deve ir para frente.                                                                                 //
+#define FRENTE 1                                                                                                                                  //
+//  Definição do valor que indica que o robo deve ir para trás.                                                                                   //
+#define ATRAS 2                                                                                                                                   //
+//  Definição do valor que indica que o robo deve ir para a esquerda.                                                                             //
+#define ESQUERDA 3                                                                                                                                //
+//  Definição do valor que indica que o robo deve ir para  direita.                                                                               //
+#define DIREITA 4                                                                                                                                 //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Definições globais de Configuração da Placa.                                                                                                */
 //  Representa o ID da placa no contexto. O valor pode adotar qualqer número entre 1 e 9.                                                         //
@@ -76,6 +85,30 @@ typedef struct                                                                  
   //  ~ Unsigned Long que representa o instante em 'ms' em que a mensagem deve ou deveria ser enviada.                                            //
   unsigned long timeToSend;                                                                                                                       //
 } Message;                                                                                                                                        //
+/* ---------------------------------------------------------------------------------------------------------------------------------------------- */
+/*  ~ Variáveis de estado do robo.                                                                                                                */
+//  Indica se o robo está ligado ou desligado.                                                                                                    //
+//    Por padrão o robo inicializa desligado.                                                                                                     //
+bool power_on = false;                                                                                                                            //
+//  Modo de movimentação do robo, alterna entre altomático ('true') ou manual ('false').                                                          //
+//    Por padrão o robo inicializa no automático, contudo, é possível alterar essa inicialização no código do Arduino 1.                          //
+bool robot_auto_move = true;                                                                                                                      //
+//  Direção de movimentação do robo. 1 = frente; 2 = trás; 3 = esquerda; 4 = direita; 0 = parar.                                                  //
+int robot_direction = 1;                                                                                                                          //
+//  Instante em 'ms' de inicialização de alguma atividade de movimentação.                                                                        //
+unsigned long start_move_time = 0;                                                                                                                //
+//  Instante em 'ms' da atividade anterior executada pelo robo.                                                                                   //
+unsigned long last_move_time = 0;                                                                                                                 //
+//  Registro da última verificação de distância.                                                                                                  //
+unsigned long last_time_distance_calc = 0;                                                                                                        //
+//  Instante da última atividade do painel solar.                                                                                                 //
+unsigned long start_painel_solar_function = 0;                                                                                                    //
+//  Informa se o painel solar deve ser aberto.                                                                                                    //
+bool opening_painel_solar = false;                                                                                                                //
+//  Informa se o painel solar deve ser fechado.                                                                                                   //
+bool closing_painel_solar = false;                                                                                                                //
+//  Informa se o painel solar está totalmente aberto.                                                                                             //
+bool painel_solar_open = false;                                                                                                                   //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Inicialização das variáveis do sistema de Delay.                                                                                            */
 //  Vetor responsável por armazenar os elementos do sistema de delay.                                                                             //
@@ -268,6 +301,9 @@ bool CheckObstacles()                                                           
   //  ~ Calcula a distância baseando-se na velocidade do som no ar.                                                                               //
   float distance = (timer * (SOUND_SPEED_IN_AIR / 100.0)) / 2.0;                                                                                  //
                                                                                                                                                   //
+  //  ~ Atualiza o tempo da checagem.                                                                                                             //
+  last_time_distance_calc = millis();                                                                                                             //
+                                                                                                                                                  //
   //  ~ Por fim, retorna conforme a distância calculada está relacionada com o valor mínimo aceitável.                                            //
   if (distance <= MIN_DISTANCE) return true; else return false;                                                                                   //
 }                                                                                                                                                 //
@@ -277,30 +313,6 @@ void Translate(int robot_direction)                                             
 {                                                                                                                                                 //
   
 }                                                                                                                                                 //
-/* ---------------------------------------------------------------------------------------------------------------------------------------------- */
-/*  ~ Variáveis de estado do robo.                                                                                                                */
-//  Indica se o robo está ligado ou desligado.                                                                                                    //
-//    Por padrão o robo inicializa desligado.                                                                                                     //
-bool power_on = false;                                                                                                                            //
-//  Modo de movimentação do robo, alterna entre altomático ('true') ou manual ('false').                                                          //
-//    Por padrão o robo inicializa no automático, contudo, é possível alterar essa inicialização no código do Arduino 1.                          //
-bool robot_auto_move = true;                                                                                                                      //
-//  Direção de movimentação do robo. 1 = frente; 2 = trás; 3 = esquerda; 4 = direita; 0 = parar.                                                  //
-int robot_direction = 1;                                                                                                                          //
-//  Instante em 'ms' de inicialização de alguma atividade de movimentação.                                                                        //
-unsigned long start_move_time = 0;                                                                                                                //
-//  Instante em 'ms' da atividade anterior executada pelo robo.                                                                                   //
-unsigned long last_move_time = 0;                                                                                                                 //
-//  Registro da última verificação de distância.                                                                                                  //
-unsigned long last_time_distance_calc = 0;                                                                                                        //
-//  Instante da última atividade do painel solar.                                                                                                 //
-unsigned long start_painel_solar_function = 0;                                                                                                    //
-//  Informa se o painel solar deve ser aberto.                                                                                                    //
-bool opening_painel_solar = false;                                                                                                                //
-//  Informa se o painel solar deve ser fechado.                                                                                                   //
-bool closing_painel_solar = false;                                                                                                                //
-//  Informa se o painel solar está totalmente aberto.                                                                                             //
-bool painel_solar_open = false;                                                                                                                   //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Função do loop principal do sistema.                                                                                                        */
 void loop()                                                                                                                                       //
@@ -318,12 +330,32 @@ void loop()                                                                     
   //  ~ Ignora qualquer função local, exceto relacionada a comunicação, caso o robo esteja desligado.                                             //
   if (power_on)                                                                                                                                   //
   {                                                                                                                                               //
-    //  ~ Verifica alterações de entrada.                                                                                                         //
+    //  ~ Primeiro o robo irá trabalhar com sua movimentação, então, ele trata do caso para as 4 direções em que pode se mover.                   //
+    switch (robot_direction)                                                                                                                      //
+    {                                                                                                                                             //
+      //  ~ Verificações caso o robo esteja indo para a frente.                                                                                   //
+      case FRENTE:                                                                                                                                //
+        //  ~ Verifica se o robo deve ou não analizar a existência de um objeto a frente.                                                         //
+        //  O robo apenas irá realizar a medição de distância 1 vez a cada o tempo inserido nas configurações.                                    //
+        if (millis() >= (last_time_distance_calc + MEASURING_RANGE_TIME))                                                                         //
+        {                                                                                                                                         //
+          //  ~ Faz a verificação, caso haja um objeto a frente, realiza os procedimentos conforme a lógica proposta.                             //
+          if (CheckObstacles())                                                                                                                   //
+          {                                                                                                                                       //
+            //  ~ Se o robo estiver no modo automático e encontrar um obstáculo, ele deverá virar a esquerda.                                     //
+            //  Caso ele esteja no modo manual, ele deverá parar.                                                                                 //
+            if (robot_auto_move) robot_direction = ESQUERDA;                                                                                      //
+            else robot_direction = PARAR;                                                                                                         //
+          }                                                                                                                                       //
+        }                                                                                                                                         //
+        break;                                                                                                                                    //
+    }                                                                                                                                             //
   }                                                                                                                                               //
-  else
-  {
+  //  ~ Caso o robo esteja desligado, mantém a propriedade de paralização, as únicas coisas funcionando são a comunicação no caso do arduino 3.   //
+  else                                                                                                                                            //
+  {                                                                                                                                               //
     //  ~ Faz com que o robo pare por completo.                                                                                                   //
-    Translate(0);                                                                                                                                 //
+    Translate(PARAR);                                                                                                                             //
     //  ~ Caso o painel solar esteja aberto, ele fecha.                                                                                           //
     if (painel_solar_open)                                                                                                                        //
     {                                                                                                                                             //
@@ -357,6 +389,7 @@ void loop()                                                                     
       }                                                                                                                                           //
     }                                                                                                                                             //
   }                                                                                                                                               //
+                                                                                                                                                  //
   //  ~ Verifica se a mensagem selecionada no ponteiro de envio do vetor de Delay deve ou não ser enviada. Caso deva, chama a função responsável  //
   // por preparar o envio.                                                                                                                        //
   if (MessageToSend[SendCursor].timeToSend <= millis()) PrepareToSend();                                                                          //
@@ -419,10 +452,6 @@ void HandleData(int code, int message)                                          
   //  ~ Verifica o que deve fazer com a mensagem recebida baseando-se no código de função que foi recebido junto dela.                            //
   switch(code)                                                                                                                                    //
   {                                                                                                                                               //
-    //  ~ Informa o arduino que deve "reiniciar" (desliga se estiver ligado e liga se estiver desligado).                                         //
-    case 0:                                                                                                                                       //
-      if ((bool) message) power_on = !power_on;                                                                                                   //
-      break;                                                                                                                                      //
     //  ~ Informa se a movimentação do robo está em modo automático ou manual.                                                                    //
     case 1:                                                                                                                                       //
       robot_auto_move = (bool) message;                                                                                                           //
@@ -431,6 +460,10 @@ void HandleData(int code, int message)                                          
     case 2:                                                                                                                                       //
       if (robot_direction == message) break;                                                                                                      //
       robot_direction = message;                                                                                                                  //
+      break;                                                                                                                                      //
+    //  ~ Informa se o robo deve estar funcionando ou não. Quem irá coordenar isso será o Arduino 2.                                              //
+    case 4:                                                                                                                                       //
+      power_on = (bool) message;                                                                                                                  //
       break;                                                                                                                                      //
   }                                                                                                                                               //
 }                                                                                                                                                 //
