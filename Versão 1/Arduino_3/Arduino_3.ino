@@ -313,7 +313,55 @@ bool CheckObstacles()                                                           
 /*  ~ Responsável pela movimentação própriamente dita.                                                                                            */
 void Translate(int robot_direction)                                                                                                               //
 {                                                                                                                                                 //
-  
+  //  ~ Verifica o tipo de movimentação de entrada.                                                                                               //
+  switch(robot_direction)                                                                                                                         //
+  {                                                                                                                                               //
+    //  ~ Caso o robo deva parar.                                                                                                                 //
+    case PARAR:                                                                                                                                   //
+        //  ~ Para os motores.                                                                                                                    //
+        digitalWrite(ENGINE_RIGHT, LOW);                                                                                                          //
+        digitalWrite(ENGINE_RIGHT_REVERSE, LOW);                                                                                                  //
+        digitalWrite(ENGINE_LEFT, LOW);                                                                                                           //
+        digitalWrite(ENGINE_LEFT_REVERSE, LOW);                                                                                                   //
+      break;                                                                                                                                      //
+    //  ~ Caso o robo deva ir para frente.                                                                                                        //
+    case FRENTE:                                                                                                                                  //
+        //  ~ Para os motores.                                                                                                                    //
+        digitalWrite(ENGINE_RIGHT, HIGH);                                                                                                         //
+        digitalWrite(ENGINE_RIGHT_REVERSE, LOW);                                                                                                  //
+        digitalWrite(ENGINE_LEFT, HIGH);                                                                                                          //
+        digitalWrite(ENGINE_LEFT_REVERSE, LOW);                                                                                                   //
+      break;                                                                                                                                      //
+    //  ~ Caso o robo deva ir para trás.                                                                                                          //
+    case ATRAS:                                                                                                                                   //
+        //  ~ Para os motores.                                                                                                                    //
+        digitalWrite(ENGINE_RIGHT, LOW);                                                                                                          //
+        digitalWrite(ENGINE_RIGHT_REVERSE, HIGH);                                                                                                 //
+        digitalWrite(ENGINE_LEFT, LOW);                                                                                                           //
+        digitalWrite(ENGINE_LEFT_REVERSE, HIGH);                                                                                                  //
+      break;                                                                                                                                      //
+    //  ~ Caso o robo deva virar para a esquerda.                                                                                                 //
+    case ESQUERDA:                                                                                                                                //
+        //  ~ Para os motores.                                                                                                                    //
+        digitalWrite(ENGINE_RIGHT, HIGH);                                                                                                         //
+        digitalWrite(ENGINE_RIGHT_REVERSE, LOW);                                                                                                  //
+        digitalWrite(ENGINE_LEFT, LOW);                                                                                                           //
+        digitalWrite(ENGINE_LEFT_REVERSE, HIGH);                                                                                                  //
+      break;                                                                                                                                      //
+    //  ~ Caso o robo deva virar para a direita.                                                                                                  //
+    case DIREITA:                                                                                                                                 //
+        //  ~ Para os motores.                                                                                                                    //
+        digitalWrite(ENGINE_RIGHT, LOW);                                                                                                          //
+        digitalWrite(ENGINE_RIGHT_REVERSE, HIGH);                                                                                                 //
+        digitalWrite(ENGINE_LEFT, HIGH);                                                                                                          //
+        digitalWrite(ENGINE_LEFT_REVERSE, LOW);                                                                                                   //
+      break;                                                                                                                                      //
+    //  ~ Caso nenhuma delas, retorna.                                                                                                            //
+    default:                                                                                                                                      //
+      return;                                                                                                                                     //
+  }                                                                                                                                               //
+  //  ~ Define o novo tempo de inicio do movimento.                                                                                               //
+  start_move_time = millis();                                                                                                                     //
 }                                                                                                                                                 //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Função do loop principal do sistema.                                                                                                        */
@@ -479,7 +527,14 @@ void loop()                                                                     
     }                                                                                                                                             //
                                                                                                                                                   //
     //  ~ Verifica atualização de estado da movimentação do robo e executa.                                                                       //
-    if (_robot_direction != robot_direction) Translate(robot_direction);                                                                          //
+    if (_robot_direction != robot_direction)                                                                                                      //
+    {                                                                                                                                             //
+      //  ~ Calcula o tempo de movimentação anterior com base no tipo da movimentação anterior.                                                   //
+      if (_robot_direction == FRENTE) last_move_time = millis() - start_move_time;                                                                //
+      else last_move_time = 0;                                                                                                                    //
+      //  ~ Altera a direção do robo.                                                                                                             //
+      Translate(robot_direction);                                                                                                                 //
+    }                                                                                                                                             //
   }                                                                                                                                               //
   //  ~ Caso o robo esteja desligado, mantém a propriedade de paralização, as únicas coisas funcionando são a comunicação no caso do arduino 3.   //
   else                                                                                                                                            //
@@ -586,9 +641,9 @@ void HandleData(int code, int message)                                          
     case 1:                                                                                                                                       //
       robot_auto_move = (bool) message;                                                                                                           //
       break;                                                                                                                                      //
-    //  ~ Alterações de movimentação do robo.                                                                                                     //
+    //  ~ Alterações de movimentação do robo. Apenas efetiva se o automático estiver desligado.                                                   //
     case 2:                                                                                                                                       //
-      if (robot_direction == message) break;                                                                                                      //
+      if ((robot_direction == message) or (robot_auto_move)) break;                                                                               //
       robot_direction = message;                                                                                                                  //
       break;                                                                                                                                      //
     //  ~ Informa se o robo deve estar funcionando ou não. Quem irá coordenar isso será o Arduino 2.                                              //
