@@ -663,6 +663,14 @@ void HandleData(int code, int message)                                          
     case 4:                                                                                                                                       //
       power_on = (bool) message;                                                                                                                  //
       break;                                                                                                                                      //
+    //  ~ Reenvia a mensagem da temperatura.
+    case 5:                                                                                                                                       //
+      AddMessage(4, code, message);                                                                                                               //
+      break;                                                                                                                                      //
+    //  ~ Reenvia a mensagem para o arduino final.                                                                                                //
+    case 6:                                                                                                                                       //
+      AddMessage(4, code, message);                                                                                                               //
+      break;                                                                                                                                      //
     //  ~ Informa sobre erros provenientes do arduino 2.                                                                                          //
     case 99:                                                                                                                                      //
       break;                                                                                                                                      //
