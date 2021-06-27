@@ -323,7 +323,6 @@ void loop()                                                                     
   if (LastMessage <= (millis() + (SleepMultiplyer * DELAY_SLEEP) + RESET_SLEEP)) { LastMessage = 2592000000; SleepMultiplyer = 0; }               //
                                                                                                                                                   //
   //  ~ Declara as variáveis de estado locais.                                                                                                    //
-  bool _robot_auto_move = robot_auto_move;                                                                                                        //
   int _robot_direction = robot_direction;                                                                                                         //
                                                                                                                                                   //
   //  ~ Verifica atualizações de entrada de dados.                                                                                                //
@@ -428,6 +427,59 @@ void loop()                                                                     
         AddMessage(4, 99, 1);                                                                                                                     //
         break;                                                                                                                                    //
     }                                                                                                                                             //
+                                                                                                                                                  //
+    //  ~ Cuida da movimentação dos motores do painel solar.                                                                                      //
+    //  ~ Para começar, faz um debug para evitar conflitos. Caso o painel esteja aberto ele não pode abrir, caso ele esteja fechado, ele não pode //
+    //  fechar. Para isso, usamos a seguinte relação:                                                                                             //
+    if ((painel_solar_open) and (opening_painel_solar)) opening_painel_solar = false;                                                             //
+    if ((!painel_solar_open) and (closing_painel_solar)) closing_painel_solar = false;                                                            //
+    //  ~ Agora, verifica se o painel solar está abrindo, se estiver, executa a operação de abertura.                                             //
+    if (opening_painel_solar)                                                                                                                     //
+    {                                                                                                                                             //
+      //  ~ Verifica se o tempo previsto de abertura foi ou não cumprido.                                                                         //
+      if (millis() >= (start_painel_solar_function + PAINEL_SOLAR_FUNCTIONS_RANGE_TIME))                                                          //
+      {                                                                                                                                           //
+        // ~ Para o motor responsável pela abertura.                                                                                              //
+        digitalWrite(ENGINE_PAINEL_SOLAR, LOW);                                                                                                   //
+        digitalWrite(ENGINE_PAINEL_SOLAR_REVERSE, LOW);                                                                                           //
+        //  ~ Declara que a abertura está concluída.                                                                                              //
+        opening_painel_solar = false;                                                                                                             //
+        //  ~ Declara que o painel solar está aberto.                                                                                             //
+        painel_solar_open = true;                                                                                                                 //
+      }                                                                                                                                           //
+      //  ~ Caso o tempo não esteja cumprido, continua abrindo o painel.                                                                          //
+      else                                                                                                                                        //
+      {                                                                                                                                           //
+          //  ~ Coloca o motor para funcionar.                                                                                                    //
+          digitalWrite(ENGINE_PAINEL_SOLAR, HIGH);                                                                                                //
+          digitalWrite(ENGINE_PAINEL_SOLAR_REVERSE, LOW);                                                                                         //
+      }                                                                                                                                           //
+    }                                                                                                                                             //
+    //  ~ Caso o painel solar não esteja abrindo, ele deve estar fechando, então, verifica a condição.                                            //
+    else if (closing_painel_solar)                                                                                                                //
+    {                                                                                                                                             //
+      //  ~ Verifica se o tempo previsto para o fechamento foi ou não cumprido.                                                                   //
+      if (millis() >= (start_painel_solar_function + PAINEL_SOLAR_FUNCTIONS_RANGE_TIME))                                                          //
+      {                                                                                                                                           //
+        // ~ Para o motor responsável pelo fechamento.                                                                                            //
+        digitalWrite(ENGINE_PAINEL_SOLAR, LOW);                                                                                                   //
+        digitalWrite(ENGINE_PAINEL_SOLAR_REVERSE, LOW);                                                                                           //
+        //  ~ Declara que o fechamento está concluído.                                                                                            //
+        closing_painel_solar = false;                                                                                                             //
+        //  ~ Declara que o painel solar está fechado.                                                                                            //
+        painel_solar_open = false;                                                                                                                //
+      }                                                                                                                                           //
+    }                                                                                                                                             //
+    //  ~ Caso não esteja fechando ou abrindo, desliga os motores.                                                                                //
+    else                                                                                                                                          //
+    {                                                                                                                                             //
+      //  ~ Faz o desligamento dos motores.                                                                                                       //
+      digitalWrite(ENGINE_PAINEL_SOLAR, LOW);                                                                                                     //
+      digitalWrite(ENGINE_PAINEL_SOLAR_REVERSE, LOW);                                                                                             //
+    }                                                                                                                                             //
+                                                                                                                                                  //
+    //  ~ Verifica atualização de estado da movimentação do robo e executa.                                                                       //
+    if (_robot_direction != robot_direction) Translate(robot_direction);                                                                          //
   }                                                                                                                                               //
   //  ~ Caso o robo esteja desligado, mantém a propriedade de paralização, as únicas coisas funcionando são a comunicação no caso do arduino 3.   //
   else                                                                                                                                            //
@@ -440,7 +492,7 @@ void loop()                                                                     
       //  ~ Realiza a atualização de contexto entre abertura e fechamento do painel solar.                                                        //
       if (!closing_painel_solar) {                                                                                                                //
         closing_painel_solar = true;                                                                                                              //
-        if (opening_painel_solar) opening_painel_solar = false;                                                                                   //
+        opening_painel_solar = false;                                                                                                             //
         start_painel_solar_function = millis();                                                                                                   //
       }                                                                                                                                           //
       //  ~ Se o fechamento do painel solar estiver ativo, liga os motores.                                                                       //
