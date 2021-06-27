@@ -99,6 +99,8 @@ int robot_direction = 1;                                                        
 unsigned long start_move_time = 0;                                                                                                                //
 //  Instante em 'ms' da atividade anterior executada pelo robo.                                                                                   //
 unsigned long last_move_time = 0;                                                                                                                 //
+//  Informa se o robo deve retroceder ou não.                                                                                                     //
+bool robot_return = false;                                                                                                                        //
 //  Registro da última verificação de distância.                                                                                                  //
 unsigned long last_time_distance_calc = 0;                                                                                                        //
 //  Instante da última atividade do painel solar.                                                                                                 //
@@ -352,7 +354,7 @@ void loop()                                                                     
       //  ~ Verificações caso o robo esteja indo para trás.                                                                                       //
       case ATRAS:                                                                                                                                 //
           //  ~ Se o modo automático estiver ligado, altera para o robo seguir para a frente.                                                     //
-          if (robot_auto_move) { robot_direction = FRENTE; break; }                                                                               //
+          if (robot_auto_move) { robot_direction = FRENTE; last_time_distance_calc = millis() - MEASURING_RANGE_TIME; break; }                    //
           //  ~ Verifica se o robo pode continuar indo para trás.                                                                                 //
           if (millis() >= (start_move_time + last_move_time))                                                                                     //
           {                                                                                                                                       //
@@ -365,15 +367,64 @@ void loop()                                                                     
         //  ~ Verifica a conclusão da rotação.                                                                                                    //
         if (millis() >= (start_move_time + ROTATE_RANGE_TIME))                                                                                    //
         {                                                                                                                                         //
-          
+          //  ~ Se estiver no modo automático, ele verifica se tem algum obstáculo a frente. Caso haja, ele rotaciona o robo para a direita.      //
+          if ((robot_auto_move) and (CheckObstacles())) robot_direction = DIREITA;                                                                //
+          //  ~ Caso não haja, ele segue em frente.                                                                                               //
+          else if ((robot_auto_move) and (!CheckObstacles()))                                                                                     //
+          {                                                                                                                                       //
+            robot_direction = FRENTE;                                                                                                             //
+            last_time_distance_calc = millis() - MEASURING_RANGE_TIME;                                                                            //
+          }                                                                                                                                       //
+          //  ~ Se ele estiver no modo manual, ele para.                                                                                          //
+          else robot_direction = PARAR;                                                                                                           //
         }                                                                                                                                         //
         break;                                                                                                                                    //
-      //
+      //  ~ Verificação caso o robo esteja virando para a direita.                                                                                //
+      case DIREITA:                                                                                                                               //
+          //  ~ Caso esteja no modo automático, a rotação para a direita é dobrada, então, separa-se os dois casos.                               //
+          //  No caso, por ser mais simples, tratamos do modo manual. Caso o tempo de execução seja atingido, o robo para.                        //
+          if(!robot_auto_move) { if (millis() >= (start_move_time + ROTATE_RANGE_TIME)) robot_direction = PARAR; }                                //
+          else                                                                                                                                    //
+          {                                                                                                                                       //
+            //  ~ Multiplicador para as rotações.                                                                                                 //
+            int turns = robot_return ? 1 : 2;                                                                                                     //
+            //  ~ Verifica se a(s) volta(s) já foram concluidas.                                                                                  //
+            if (millis() >= (start_move_time + (turns * ROTATE_RANGE_TIME)))                                                                      //
+            {                                                                                                                                     //
+              //  ~ Se o retorno estiver desligado ele verifica para seguir em frente. Caso haja obstáculos, ele vira para a direita e liga o     //
+              //  retorno.                                                                                                                        //
+              if ((!robot_return) and (CheckObstacles())) { robot_direction = DIREITA; robot_return = true; }                                     //
+              //  ~ Se não houver obstáculos, ele segue em frente.                                                                                //
+              else if ((!robot_return) and (!CheckObstacles()))                                                                                   //
+              {                                                                                                                                   //
+                robot_direction = FRENTE;                                                                                                         //
+                last_time_distance_calc = millis() - MEASURING_RANGE_TIME;                                                                        //
+              }                                                                                                                                   //
+              //  ~ Se o retorno estiver ligado e não houverem obstáculos, ele segue em frente e desliga o retorno.                               //
+              else if ((robot_return) and (CheckObstacles())) { robot_direction = FRENTE; robot_return = false; }                                 //
+              //  ~ Se o retorno estiver ligado e houverem obstáculos, ele desliga o robo e informa o erro.                                       //
+              else                                                                                                                                //
+              {                                                                                                                                   //
+                //  ~ Desliga o robo.                                                                                                             //
+                power_on = false;                                                                                                                 //
+                //  ~ Para o robo.                                                                                                                //
+                robot_return = PARAR;                                                                                                             //
+                //  ~ Informa o erro (código de erro: 2 | destino: <4>).                                                                          //
+                AddMessage(4, 99, 2);                                                                                                             //
+              }                                                                                                                                   //
+            }                                                                                                                                     //
+          }                                                                                                                                       //
+        break;                                                                                                                                    //
+      //  ~ Se o robo estiver parado.                                                                                                             //
+      case PARAR:                                                                                                                                 //
+        //  ~ Se o robo estiver no modo automático e estiver parado ele automaticamente troca para "seguir em frente".                            //
+        if (robot_auto_move) { robot_direction = FRENTE; last_time_distance_calc = millis() - MEASURING_RANGE_TIME; }                             //
+        break;                                                                                                                                    //
       //  ~ Se nenhuma das opções, para o robo e informa um erro.                                                                                 //
       default:                                                                                                                                    //
         //  ~ Para o robo.                                                                                                                        //
         robot_direction = PARAR;                                                                                                                  //
-        //  ~ Informa o erro (código de erro: 1 | destino: <4>)                                                                                   //
+        //  ~ Informa o erro (código de erro: 1 | destino: <4>).                                                                                  //
         AddMessage(4, 99, 1);                                                                                                                     //
         break;                                                                                                                                    //
     }                                                                                                                                             //
@@ -491,6 +542,9 @@ void HandleData(int code, int message)                                          
     //  ~ Informa se o robo deve estar funcionando ou não. Quem irá coordenar isso será o Arduino 2.                                              //
     case 4:                                                                                                                                       //
       power_on = (bool) message;                                                                                                                  //
+      break;                                                                                                                                      //
+    //  ~ Informa sobre erros provenientes do arduino 2.                                                                                          //
+    case 99:                                                                                                                                      //
       break;                                                                                                                                      //
   }                                                                                                                                               //
 }                                                                                                                                                 //
