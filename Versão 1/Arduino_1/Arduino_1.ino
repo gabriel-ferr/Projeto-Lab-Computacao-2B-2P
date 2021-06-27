@@ -1,8 +1,4 @@
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
-/*  ~ Configurações do modo de inicialização do robo.                                                                                             */
-//  Modo de movimentação do robo. Se 'false' indica que o modo é o manual; se 'true' indica que o modo é o automático.                            //
-#define BOT_MODE true                                                                                                                             //
-/* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Definições globais de Configuração da Placa.                                                                                                */
 //  Representa o ID da placa no contexto. O valor pode adotar qualqer número entre 1 e 9.                                                         //
 #define ID 1                                                                                                                                      //
@@ -320,9 +316,9 @@ void setup()                                                                    
   pinMode(BUTTON_RESET, INPUT);                                                                                                                   //
                                                                                                                                                   //
   //  ~ Carrega as definições iniciais do robo.                                                                                                   //
-  bot_auto_mov = BOT_MODE;                                                                                                                        //
+  bot_auto_mov = (bool) digitalRead(INT_MOVE);                                                                                                    //
   //  ~ Manda mensagens de atualização para reiniciar o robo em seu estado inicial.                                                               //
-  //  ~ Coloca o robo no padrão (modo automático).                                                                                                //
+  //  ~ Coloca o robo no padrão.                                                                                                                  //
   SendTo(3, 1, (int) bot_auto_mov);                                                                                                               //
   //  ~ Espera alguns milissegundos.                                                                                                              //
   delay(300);                                                                                                                                     //
