@@ -11,6 +11,19 @@
 #define CHAIN_LOOP false                                                                                                                          //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Definições locais de Configuração da Placa.                                                                                                 */
+//  Porta responsável pela comunicação com o servo de rotação da câmera.                                                                          //
+//    Uso de saída de informações via PWM.                                                                                                        //
+#define CAMERA 5                                                                                                                                  //
+//  Porta responsável pela iluminação frontal do robo.                                                                                            //
+#define LIGHT_LEDS 3                                                                                                                              //
+//  Porta responsável pelo led que indica o funcionamento do aquecedor interno do robo.                                                           //
+#define HEATER_LED 6                                                                                                                              //
+//  Porta de entrada de informação via sensor de luminosidade ambiente.                                                                           //
+#define ENVIRONMENT_LIGHT_SENSOR 13                                                                                                               //
+//  Porta de entrada de informação via sensor de temperatura.                                                                                     //
+#define TMP_SENSOR A0                                                                                                                             //
+//  Porta de entrada de informação via sensor de gás.                                                                                             //
+#define GAS_SENSOR A1                                                                                                                             //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Definições de Configuração do código.                                                                                                       */
 //  Configuração do modo de Debug. Caso 'true' ativa; caso 'false' desativa.                                                                      //
@@ -18,6 +31,26 @@
 //    isso pode gerar interferência, então, evite mantê-lo ativado.                                                                               //
 //  !~~! O DEBUG PROVOCA UM ATRAZO NO FUNCIONAMENTO DO CÓDIGO, ALÉM DE POSSIVEIS PERDAS DE INFORMAÇÃO. PORTANTO, EVITE UTILIZA-LO FUNCIONALMENTE. //
 #define DEBUG true                                                                                                                                //
+/* ---------------------------------------------------------------------------------------------------------------------------------------------- */
+/*  ~ Inicializa as variáveis de estado do sistema.                                                                                               */
+//  Informa se o robo está ligado ou desligado. Por padrão, é essa variável que define o estado dos dois arduinos. Porém, por conta de possiveis  //
+//  erros operacionais é possível que o sistema do arduino 3 desligue, enquanto o do arduino 2 continue funcionando. Nesse caso, é necessário re- //
+//  -iniciar o Arduino-2 a partir do Arduino-1. Essa situação específica será alertada no LCD do Arduino-4 como um erro.                          //
+//      Por padrão, o arduino inicializa desligado, sendo necessária interferência do Arduino-1 para ligá-lo.                                     //
+bool power_on = false;                                                                                                                            //
+//  Informa o ângulo de rotação da câmera.                                                                                                        //
+int cam_rotation_angle = 90;                                                                                                                      //
+//  Informa o novo ângulo de rotação da câmera.                                                                                                   //
+int new_cam_rotation_angle = cam_rotation_angle;                                                                                                  //
+//  Informa se esta claro ou escuro.                                                                                                              //
+bool environment_daytime = false;                                                                                                                 //
+//  Informa a temperatura atual.                                                                                                                  //
+float temperature = 0;                                                                                                                            //
+//  Informa a presença e quantidade percentual de gás.                                                                                            //
+int gas_sensor = 0;                                                                                                                               //
+//  Salva o estado dos leds quando o robo for desligado.                                                                                          //
+bool backup_light_led = false;                                                                                                                    //
+bool backup_heater_led = false;                                                                                                                   //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Inicializa as funções de comunicação I2C.                                                                                                   */
 //  Função responsável por enviar mensagens ao próximo arduino.                                                                                   //
@@ -31,6 +64,26 @@ void Receive();                                                                 
 //        ~ 'code': Código da função da mensagem recebida. Simboliza o que a função HandleData deve fazer com a mensagem.                         //
 //        ~ 'message': Mensagem recebida para ser interpretada.                                                                                   //
 void HandleData(int code, int message);                                                                                                           //
+/* ---------------------------------------------------------------------------------------------------------------------------------------------- */
+/*  ~ Inicializa as funções de leitura dos sensores.                                                                                              */
+//  Faz a leitura da temperatura registrada no sensor TMP36.                                                                                      //
+//        ~ return: retorna a temperatura na escala Celsius.                                                                                      //
+float Temperature();                                                                                                                              //
+//  Faz a leitura de presensa de gás registrada no sensor responsável.                                                                            //
+//        ~ return: retorna o percentual de gás encontrado.                                                                                       //
+int Gas();                                                                                                                                        //
+/* ---------------------------------------------------------------------------------------------------------------------------------------------- */
+/*  ~ Faz a leitura da temperatura registrada no sensor TMP36.                                                                                    */
+float Temperature()                                                                                                                               //
+{                                                                                                                                                 //
+  return ((analogRead(TMP_SENSOR) * (5000.0/1024.0)) - 500) / 10.0;                                                                               //
+}                                                                                                                                                 //
+/* ---------------------------------------------------------------------------------------------------------------------------------------------- */
+/*  ~ Faz a leitura de presensa de gás registrada no sensor responsável.                                                                          */
+int Gas()                                                                                                                                         //
+{                                                                                                                                                 //
+  return map(analogRead(GAS_SENSOR), 300, 750, 0, 100);                                                                                           //
+}                                                                                                                                                 //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Função responsável por enviar mensagens ao próximo arduino.                                                                                 */
 void SendTo(int to, int code, int message)                                                                                                        //
@@ -82,7 +135,6 @@ void SendTo(int to, int code, int message)                                      
     Serial.print(millis());                                                                                                                       //
     Serial.println("ms.");                                                                                                                        //
   }                                                                                                                                               //
-                                                                                                                                                  //
 }                                                                                                                                                 //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Função responsável por receber as mensagens enviadas pelos demais arduinos.                                                                 */
@@ -134,13 +186,71 @@ void Receive()                                                                  
   //  ~ Envia o código para o tratamento dos dados recebidos.                                                                                     //
   HandleData(_code, _message);                                                                                                                    //
 }                                                                                                                                                 //
-
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Função do loop principal do sistema.                                                                                                        */
 void loop()                                                                                                                                       //
 {                                                                                                                                                 //
+  //  ~ Define as variaveis de estado locais para fazer a validação de alteração.                                                                 //
+  bool _power_on = power_on;                                                                                                                      //
+  bool _environment_daytime = environment_daytime;                                                                                                //
+  float _temperature = temperature;                                                                                                               //
+  int _gas_sensor = gas_sensor;                                                                                                                   //
+                                                                                                                                                  //
   //  ~ Verifica atualizações de entrada de dados.                                                                                                //
   if (Serial.available() > 0) Receive();                                                                                                          //
+                                                                                                                                                  //
+  //  ~ Realiza alterações na medição da temperatura.                                                                                             //
+  temperature = Temperature();                                                                                                                    //
+  //  ~ Realiza alterações na medição de gás.                                                                                                     //
+  gas_sensor = Gas();                                                                                                                             //
+                                                                                                                                                  //
+  //  ~ Verifica mudança de medição da temperatura.                                                                                               //
+  if (_temperature != temperature)                                                                                                                //
+  {                                                                                                                                               //
+    //  ~ Se a temperatura medida for maior do que 100°C, ele desliga o robo.                                                                     //
+    if (temperature > 100) { power_on = false; digitalWrite(HEATER_LED, LOW); }                                                                   //
+    else if (temperature < 0) { power_on = true; digitalWrite(HEATER_LED, HIGH); }                                                                //
+    else digitalWrite(HEATER_LED, LOW);                                                                                                           //
+    //  ~ Envia para a central de controle a alteração de temperatura.                                                                            //
+    SendTo(3, 5, map((int) temperature, -50, 150, 300, 500));                                                                                     //
+  }                                                                                                                                               //
+  //  ~ Verifica mudanças no sensor de gás.                                                                                                       //
+  if (_gas_sensor != gas_sensor)                                                                                                                  //
+  {                                                                                                                                               //
+    //  ~ Verifica a existência de gás. Caso exista, informa a central de comando.                                                                //
+    if (gas_sensor > 0)                                                                                                                           //
+      SendTo(3, 6, map(gas_sensor, 0, 100, 400, 500));                                                                                            //
+    else                                                                                                                                          //
+      SendTo(3, 6, 0);                                                                                                                            //
+  }                                                                                                                                               //
+
+  //  ~ Verifica alterações de estado do robo.                                                                                                    //
+  if (_power_on != power_on)                                                                                                                      //
+  {                                                                                                                                               //
+    //  ~ Trava o sistema por alguns milissegundos.                                                                                               //
+    delay(300);                                                                                                                                   //
+    //  ~ Se o robo tiver que ligar.                                                                                                              //
+    if (power_on)                                                                                                                                 //
+    {                                                                                                                                             //
+      //  ~ Liga o sistema de motores.                                                                                                            //
+      SendTo(3, 4, (int) power_on);                                                                                                               //
+      //  ~ Recupera o estado dos leds do robo.                                                                                                   //
+      digitalWrite(LIGHT_LEDS, (int) backup_light_led);                                                                                           //
+      digitalWrite(HEATER_LED, (int) backup_heater_led);                                                                                          //
+    }                                                                                                                                             //
+    //  ~ Se o robo tiver que desligar.                                                                                                           //
+    else                                                                                                                                          //
+    {                                                                                                                                             //
+      //  ~ Desliga o sistema de motores.                                                                                                         //
+      SendTo(3, 4, (int) power_on);                                                                                                               //
+      //  ~ Salva o estado dos leds.                                                                                                              //
+      backup_light_led = digitalRead(LIGHT_LEDS);                                                                                                 //
+      backup_heater_led = digitalRead(HEATER_LED);                                                                                                //
+      //  ~ Desliga as luzes.                                                                                                                     //
+      digitalWrite(LIGHT_LEDS, LOW);                                                                                                              //
+      digitalWrite(HEATER_LED, LOW);                                                                                                              //
+    }                                                                                                                                             //
+  }                                                                                                                                               //
 }                                                                                                                                                 //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Função inicial do código.                                                                                                                   */
@@ -150,6 +260,21 @@ void setup()                                                                    
   Serial.begin(9600);                                                                                                                             //
   //  ~ Faz o arduino aguardar a inicialização da comunicação Serial antes de prosseguir.                                                         //
   while(!Serial);                                                                                                                                 //
+                                                                                                                                                  //
+  //  ~ Define os pinos de entrada digital como modo 'INPUT'.                                                                                     //
+  //  ~ Porta de entrada do sensor de luz ambiente.                                                                                               //
+  pinMode(ENVIRONMENT_LIGHT_SENSOR, INPUT);                                                                                                       //
+                                                                                                                                                  //
+  //  ~ Define os pinos de saída digital como modo 'OUTPUT'.                                                                                      //
+  //  ~ Porta de saída para os leds de iluminação frontal.                                                                                        //
+  pinMode(LIGHT_LEDS, OUTPUT);                                                                                                                    //
+  //  ~ Porta de saída para o led que indica o funcionamento do aquecedor.                                                                        //
+  pinMode(HEATER_LED, OUTPUT);                                                                                                                    //
+                                                                                                                                                  //
+  //  ~ Altera a temperatura registrada na variável para aquela registrada no sensor.                                                             //
+  temperature = Temperature();                                                                                                                    //
+  //  ~ Altera o percentual de gás ambiente encontrado para aquele registrado no sensor.                                                          //
+  gas_sensor = Gas();                                                                                                                             //
 }                                                                                                                                                 //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Função responsável pelo tratamento dos dados recebido de outro arduino.                                                                     */
@@ -160,6 +285,8 @@ void HandleData(int code, int message)                                          
   {                                                                                                                                               //
     //  ~ Informa o arduino que deve "reiniciar" (desliga se estiver ligado e liga se estiver desligado.                                          //
     case 0:                                                                                                                                       //
+      //  ~ Alterna o status de ligado e desligado do sistema.                                                                                    //
+      power_on = !power_on;                                                                                                                       //
       break;                                                                                                                                      //
     //  ~ Realiza alterações relacionadas a câmera.                                                                                               //
     case 3:                                                                                                                                       //
