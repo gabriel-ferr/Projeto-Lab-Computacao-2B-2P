@@ -349,6 +349,33 @@ void loop()                                                                     
           }                                                                                                                                       //
         }                                                                                                                                         //
         break;                                                                                                                                    //
+      //  ~ Verificações caso o robo esteja indo para trás.                                                                                       //
+      case ATRAS:                                                                                                                                 //
+          //  ~ Se o modo automático estiver ligado, altera para o robo seguir para a frente.                                                     //
+          if (robot_auto_move) { robot_direction = FRENTE; break; }                                                                               //
+          //  ~ Verifica se o robo pode continuar indo para trás.                                                                                 //
+          if (millis() >= (start_move_time + last_move_time))                                                                                     //
+          {                                                                                                                                       //
+            //  ~ Como o robo não pode ir para trás no modo automático, apenas trata para o modo manual parando o robo.                           //
+            robot_direction = PARAR;                                                                                                              //
+          }                                                                                                                                       //
+        break;                                                                                                                                    //
+      //  ~ Verificação caso o robo esteja virando para a esquerda.                                                                               //
+      case ESQUERDA:                                                                                                                              //
+        //  ~ Verifica a conclusão da rotação.                                                                                                    //
+        if (millis() >= (start_move_time + ROTATE_RANGE_TIME))                                                                                    //
+        {                                                                                                                                         //
+          
+        }                                                                                                                                         //
+        break;                                                                                                                                    //
+      //
+      //  ~ Se nenhuma das opções, para o robo e informa um erro.                                                                                 //
+      default:                                                                                                                                    //
+        //  ~ Para o robo.                                                                                                                        //
+        robot_direction = PARAR;                                                                                                                  //
+        //  ~ Informa o erro (código de erro: 1 | destino: <4>)                                                                                   //
+        AddMessage(4, 99, 1);                                                                                                                     //
+        break;                                                                                                                                    //
     }                                                                                                                                             //
   }                                                                                                                                               //
   //  ~ Caso o robo esteja desligado, mantém a propriedade de paralização, as únicas coisas funcionando são a comunicação no caso do arduino 3.   //
