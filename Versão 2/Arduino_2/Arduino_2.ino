@@ -2,6 +2,8 @@
 /*  ~ Defiições das configurações do robo.                                                                                                        */
 //  Define o percentual de erro do sensor de gás.                                                                                                 //
 #define GAS_PERCENT_ERR 5                                                                                                                         //
+//  Intervalo de tempo para abertura (ou fechamento) do painel solar.                                                                             //
+#define PAINEL_SOLAR_FUNC_DELAY 2000                                                                                                              //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Definições globais de Configuração da Placa.                                                                                                */
 //  Representa o ID da placa no contexto. O valor pode adotar qualqer número entre 1 e 9.                                                         //
@@ -17,6 +19,10 @@
 /*  ~ Definições locais de Configuração da Placa (PORTAS).                                                                                        */
 //  Porta responsável pelo LED das luzes frontais do robo.                                                                                        //
 #define LIGHT_LEDS 2                                                                                                                              //
+//  Porta do motor de abertura (e fechamento) do painel solar.                                                                                    //
+#define ENGINE_PAINEL_SOLAR 10                                                                                                                    //
+//  Porta de reversão do motor de abertura (e fechamento) do painel solar.                                                                        //
+#define ENGINE_PAINEL_SOLAR_REVERSE 11                                                                                                            //
 //  Porta responsável pelo LED que indica o funcionamento do aquecedor.                                                                           //
 #define HEATER_LED 12                                                                                                                             //
 //  Porta responsável pelo LED que indica o funcionamento do robo.                                                                                //
@@ -52,6 +58,16 @@ int temp_signal;                                                                
 int gas_signal;                                                                                                                                   //
 //  Variável responsável por registrar o sinal de luz ambiente.                                                                                   //
 int light_signal;                                                                                                                                 //
+//  Variável que indica se o painel solar está aberto ou não.                                                                                     //
+bool open_solar_painel = false;                                                                                                                   //
+//  Variável que indica se o painel solar está abrindo ou não.                                                                                    //
+bool opening_painel_solar = false;                                                                                                                //
+//  Variável que indica se o painel solar está fechando ou não.                                                                                   //
+bool closing_painel_solar = false;                                                                                                                //
+//  Variável que indica o instante de início de operação da abertura do painel solar.                                                             //
+unsigned long start_func_painel_solar = 2592000000;                                                                                               //
+//  Multiplicador de casos específicos.(1 - ((start_func_painel_solar + PAINEL_SOLAR_FUNC_DELAY) - millis()) / PAINEL_SOLAR_FUNC_DELAY))          //
+float specifit_painel_case_multiplier = 1;                                                                                                        //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Inicializa as funções de comunicação I2C.                                                                                                   */
 //  Função responsável por enviar mensagens ao próximo arduino.                                                                                   //
@@ -188,6 +204,10 @@ void loop()                                                                     
   //  ~ Realiza a leitura do sensor de luz ambiente.                                                                                              //
   _light_signal = analogRead(LIGHT_SENSOR);                                                                                                       //
                                                                                                                                                   //
+  //  ~ Correção boleana do painel solar.                                                                                                         //
+  if ((open_solar_painel) and (opening_painel_solar)) opening_painel_solar = false;                                                               //
+  if ((!open_solar_painel) and (closing_painel_solar)) closing_painel_solar = false;                                                              //
+                                                                                                                                                  //
   //  ~ Verifica alterações de luz ambiente.                                                                                                      //
   if (_light_signal != light_signal)                                                                                                              //
   {                                                                                                                                               //
@@ -200,7 +220,27 @@ void loop()                                                                     
       digitalWrite(LIGHT_LEDS, HIGH);                                                                                                             //
       light_led_status = true;                                                                                                                    //
       //  ~ Fecha o painel solar.                                                                                                                 //
-      //  [FUNC HERE]
+      if (opening_painel_solar)                                                                                                                   //
+      {                                                                                                                                           //
+        //  ~ Cancela a abertura do painel solar.                                                                                                 //
+        opening_painel_solar = false;                                                                                                             //
+        //  ~ Começa a fechar.                                                                                                                    //
+        closing_painel_solar = true;                                                                                                              //
+        //  ~ Calcula o multiplicador especial.                                                                                                   //
+        specifit_painel_case_multiplier = 1 - (((start_func_painel_solar + PAINEL_SOLAR_FUNC_DELAY) - millis()) / PAINEL_SOLAR_FUNC_DELAY);       //
+        //  ~ Seta um novo valor de início.                                                                                                       //
+        start_func_painel_solar = millis();                                                                                                       //
+      }                                                                                                                                           //
+      //  ~ Se o painel solar estiver aberto, fecha ele.                                                                                          //
+      if ((open_solar_painel) and (!closing_painel_solar))                                                                                        //
+      {                                                                                                                                           //
+        //  ~ Começa a fechar.                                                                                                                    //
+        closing_painel_solar = true;                                                                                                              //
+        //  ~ Define o multiplicador especial como 1.                                                                                             //
+        specifit_painel_case_multiplier = 1;                                                                                                      //
+        //  ~ Seta um novo valor de início.                                                                                                       //
+        start_func_painel_solar = millis();                                                                                                       //
+      }                                                                                                                                           //
     }                                                                                                                                             //
     else                                                                                                                                          //
     {                                                                                                                                             //
@@ -208,7 +248,27 @@ void loop()                                                                     
       digitalWrite(LIGHT_LEDS, LOW);                                                                                                              //
       light_led_status = false;                                                                                                                   //
       //  ~ Abre o painel solar.                                                                                                                  //
-      //  [FUNC HERE]
+      if (closing_painel_solar)                                                                                                                   //
+      {                                                                                                                                           //
+        //  ~ Cancela a abertura do painel solar.                                                                                                 //
+        closing_painel_solar = false;                                                                                                             //
+        //  ~ Começa a fechar.                                                                                                                    //
+        opening_painel_solar = true;                                                                                                              //
+        //  ~ Calcula o multiplicador especial.                                                                                                   //
+        specifit_painel_case_multiplier = 1 - (((start_func_painel_solar + PAINEL_SOLAR_FUNC_DELAY) - millis()) / PAINEL_SOLAR_FUNC_DELAY);       //
+        //  ~ Seta um novo valor de início.                                                                                                       //
+        start_func_painel_solar = millis();                                                                                                       //
+      }                                                                                                                                           //
+      //  ~ Se o painel solar estiver fechado, abre ele.                                                                                          //
+      if ((!open_solar_painel) and (!opening_painel_solar))                                                                                       //
+      {                                                                                                                                           //
+        //  ~ Começa a fechar.                                                                                                                    //
+        opening_painel_solar = true;                                                                                                              //
+        //  ~ Define o multiplicador especial como 1.                                                                                             //
+        specifit_painel_case_multiplier = 1;                                                                                                      //
+        //  ~ Seta um novo valor de início.                                                                                                       //
+        start_func_painel_solar = millis();                                                                                                       //
+      }                                                                                                                                           //
     }                                                                                                                                             //
   }                                                                                                                                               //
                                                                                                                                                   //
@@ -235,6 +295,9 @@ void loop()                                                                     
     //  [SEND TO - ADD HERE]
   }                                                                                                                                               //
                                                                                                                                                   //
+  //  ~ Correção do fator especial.                                                                                                               //
+  if ((specifit_painel_case_multiplier > 1) or (specifit_painel_case_multiplier < 0)) specifit_painel_case_multiplier = 1;                        //
+                                                                                                                                                  //
   //  ~ Verifica alterações no sinal de gás.                                                                                                      //
   if (_gas_signal != gas_signal)                                                                                                                  //
   {                                                                                                                                               //
@@ -257,6 +320,27 @@ void loop()                                                                     
     //  ~ Liga os leds que foram desligados.                                                                                                      //
     digitalWrite(HEATER_LED, (bool) heater_led_status);                                                                                           //
     digitalWrite(LIGHT_LEDS, (bool) light_led_status);                                                                                            //
+                                                                                                                                                  //
+    //  ~ Verifica se deve abrir os paineis solares.                                                                                              //
+    if(opening_painel_solar)                                                                                                                      //
+    {                                                                                                                                             //
+      //  ~ Verifica se o tempo foi ou não atingido.                                                                                              //
+      if(millis() > = start_func_painel_solar + (specifit_painel_case_multiplier * PAINEL_SOLAR_FUNC_DELAY))                                      //
+      {                                                                                                                                           //
+        //  ~ Informa que o painel solar já foi aberto.                                                                                           //
+        opening_painel_solar = false;                                                                                                             //
+        open_solar_painel = true;                                                                                                                 //
+        //  ~ Para os motores.                                                                                                                    //
+        digitalWrite(ENGINE_PAINEL_SOLAR, LOW);                                                                                                   //
+        digitalWrite(ENGINE_PAINEL_SOLAR_REVERSE, LOW);                                                                                           //
+      }                                                                                                                                           //
+      else                                                                                                                                        //
+      {                                                                                                                                           //
+        //  ~ Mantem o motor para abertura do painel funcionando.                                                                                 //
+        digitalWrite(ENGINE_PAINEL_SOLAR, HIGH);                                                                                                  //
+        digitalWrite(ENGINE_PAINEL_SOLAR_REVERSE, LOW);                                                                                           //
+      }                                                                                                                                           //
+    }                                                                                                                                             //
   }                                                                                                                                               //
   else                                                                                                                                            //
   {                                                                                                                                               //
@@ -270,6 +354,9 @@ void loop()                                                                     
     digitalWrite(HEATER_LED, LOW);                                                                                                                //
     //  ~ Apaga o LED de luz.                                                                                                                     //
     digitalWrite(LIGHT_LEDS, LOW);                                                                                                                //
+
+    //  ~ Atualiza as variáveis de início para o mais próximo da alteração.                                                                       //
+    start_func_painel_solar = millis();                                                                                                           //
   }                                                                                                                                               //
 }                                                                                                                                                 //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
@@ -285,6 +372,8 @@ void setup()                                                                    
   pinMode(HEATER_LED, OUTPUT);                                                                                                                    //
   pinMode(POWER_LED, OUTPUT);                                                                                                                     //
   pinMode(LIGHT_LEDS, OUTPUT);                                                                                                                    //
+  pinMode(ENGINE_PAINEL_SOLAR, OUTPUT);                                                                                                           //
+  pinMode(ENGINE_PAINEL_SOLAR_REVERSE, OUTPUT);                                                                                                   //
                                                                                                                                                   //
   //  ~ Faz a leitura padrão dos valores, para garatir sincronização.                                                                             //
   temp_signal = analogRead(TMP_SENSOR);                                                                                                           //
@@ -305,14 +394,18 @@ void setup()                                                                    
     //  ~ Faz a função de acender as luzes.                                                                                                       //
     digitalWrite(LIGHT_LEDS, HIGH);                                                                                                               //
     //  ~ Fecha o painel solar.                                                                                                                   //
-    //  [FUNC HERE]
+    opening_painel_solar = false;                                                                                                                 //
+    closing_painel_solar = true;                                                                                                                  //
+    start_func_painel_solar = millis();                                                                                                           //
   }                                                                                                                                               //
   else                                                                                                                                            //
   {                                                                                                                                               //
     //  ~ Faz a função de apagar as luzes.                                                                                                        //
     digitalWrite(LIGHT_LEDS, LOW);                                                                                                                //
     //  ~ Abre o painel solar.                                                                                                                    //
-    //  [FUNC HERE]
+    opening_painel_solar = true;                                                                                                                  //
+    closing_painel_solar = false;                                                                                                                 //
+    start_func_painel_solar = millis();                                                                                                           //
   }                                                                                                                                               //
                                                                                                                                                   //
   //  ~ Salva o status do led de aquecimento.                                                                                                     //
