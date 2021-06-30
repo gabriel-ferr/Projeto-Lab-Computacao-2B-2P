@@ -13,6 +13,8 @@
 /*  ~ Definições locais de Configuração da Placa (PORTAS).                                                                                        */
 //  Porta responsável pelo interruptor de ligado e desligado.                                                                                     //
 #define POWER_INT 2                                                                                                                               //
+//  Porta reponsável pelo potenciometro de controle da câmera.                                                                                    //
+#define CAMERA A5                                                                                                                                 //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Definições de Configuração do código.                                                                                                       */
 //  Configuração do modo de Debug. Caso 'true' ativa; caso 'false' desativa.                                                                      //
@@ -25,9 +27,9 @@
 //  Define o delay para envio das mensagens em 'ms'.                                                                                              //
 #define DELAY 1000                                                                                                                                //
 //  Tempo extra em situações de sobrecarga de mensagens.                                                                                          //
-#define DELAY_SLEEP 50                                                                                                                            //
+#define DELAY_SLEEP 150                                                                                                                           //
 //  Tempo de intervalo para resetar o acumulador de sobrecarga.                                                                                   //
-#define RESET_SLEEP 500                                                                                                                           //
+#define RESET_SLEEP 3000                                                                                                                          //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Estruturas utilizadas no código.                                                                                                            */
 //  Define a estrutura responsável por representar uma mensagem no sistema de Delay..                                                             //
@@ -46,6 +48,8 @@ typedef struct                                                                  
 /*  ~ Variáveis de estado utilizadas no funcionamento do código.                                                                                  */
 //  Variável responsável por determinar se o robo está ligado ou desligado.                                                                       //
 bool robot_power;                                                                                                                                 //
+//  Variável responsável por armazenar o sinal do potenciometro de controle da câmera.                                                            //
+int camera_signal;                                                                                                                                //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Inicialização das variáveis do sistema de Delay.                                                                                            */
 //  Vetor responsável por armazenar os elementos do sistema de delay.                                                                             //
@@ -219,14 +223,22 @@ void PrepareToSend()                                                            
 /*  ~ Função do loop principal do sistema.                                                                                                        */
 void loop()                                                                                                                                       //
 {                                                                                                                                                 //
+  //  ~ Variáveis de estado.                                                                                                                      //
+  int _camera_signal = camera_signal;                                                                                                             //
+                                                                                                                                                  //
   //  ~ Verifica se a última mensagem foi enviada a um tempo considerável para reiniciar a dormência.                                             //
   if (LastMessage <= (millis() + (SleepMultiplyer * DELAY_SLEEP) + RESET_SLEEP)) { LastMessage = 2592000000; SleepMultiplyer = 0; }               //
                                                                                                                                                   //
   //  ~ Verifica atualizações de entrada de dados.                                                                                                //
   if (Serial.available() > 0) Receive();                                                                                                          //
                                                                                                                                                   //
+  //  ~ Atualiza o valor referenciado no potenciometro.                                                                                           //
+  camera_signal = analogRead(CAMERA);                                                                                                             //
+                                                                                                                                                  //
   //  ~ Verifica alteração de estado no interruptor de ligar e desligar.                                                                          //
   if (digitalRead(POWER_INT) != (int) robot_power) { robot_power = digitalRead(POWER_INT); AddMessage(2, 0, (int) robot_power); }                 //
+  //  ~ Verifica alteração do potenciometro.                                                                                                      //
+  if (camera_signal != _camera_signal) AddMessage(2, 1, camera_signal);                                                                           //
 
   //  ~ Verifica se a mensagem selecionada no ponteiro de envio do vetor de Delay deve ou não ser enviada. Caso deva, chama a função responsável  //
   // por preparar o envio.                                                                                                                        //
@@ -262,9 +274,11 @@ void setup()                                                                    
                                                                                                                                                   //
   //  ~ Carrega as definições padrão a partir dos componentes da placa.                                                                           //
   robot_power = digitalRead(POWER_INT);                                                                                                           //
+  camera_signal = analogRead(CAMERA);                                                                                                             //
                                                                                                                                                   //
   //  ~ Configura o robo a partir das pré-definições, sem passar por delay.                                                                       //
   SendTo(2, 0, (int) robot_power);                                                                                                                //
+  SendTo(2, 1, camera_signal);                                                                                                                    //
 }                                                                                                                                                 //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Função responsável pelo tratamento dos dados recebido de outro arduino.                                                                     */
