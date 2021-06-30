@@ -7,6 +7,32 @@
 #define GAS_PERCENT_ERR 5                                                                                                                         //
 //  Intervalo de tempo para abertura (ou fechamento) do painel solar.                                                                             //
 #define PAINEL_SOLAR_FUNC_DELAY 2000                                                                                                              //
+//  Definição do valor que indica que o robo deve parar.                                                                                          //
+#define PARAR 0                                                                                                                                   // 
+//  Definição do valor que indica que o robo deve ir para frente.                                                                                 //
+#define FRENTE 1                                                                                                                                  //
+//  Definição do valor que indica que o robo deve ir para trás.                                                                                   //
+#define ATRAS 2                                                                                                                                   //
+//  Definição do valor que indica que o robo deve ir para a esquerda.                                                                             //
+#define ESQUERDA 3                                                                                                                                //
+//  Definição do valor que indica que o robo deve ir para  direita.                                                                               //
+#define DIREITA 4                                                                                                                                 //
+//  Porta do sensor ultrassônico, responsável por determinar a existência de objetos a frente. Porta de emissão de eco.                           //
+#define ULTRASOUND_SENSOR_TRIGGER 4                                                                                                               //
+//  Porta do sensor ultrassônico, responsável por determinar a existência de objetos a frente. Porta de recepção de eco.                          //
+#define ULTRASOUND_SENSOR_ECHO 5                                                                                                                  //
+//  Velocidade do som no ar em m/s.                                                                                                               //
+//    No caso, utilizamos a velocidade do som no ar na CATP (Condições Ambientes de Temperatura e Pressão), sendo assim, uma temperatura de 25°C. //
+#define SOUND_SPEED_IN_AIR 346.3                                                                                                                  //
+//  Distância mínima em que o objeto deve estar para o robo executar a frenagem e trocar de sentido.                                              //
+//    Deve ser inserido o valor em 'cm'.                                                                                                          //
+#define MIN_DISTANCE 12                                                                                                                           //
+//  Intervalo de tempo entre os quais as medidas devem ser efetuadas.                                                                             //
+//    O valor informado deve estar em 'ms'.                                                                                                       //
+#define MEASURING_RANGE_TIME 1000                                                                                                                 //
+//  Intervalo de tempo para o robo realizar sua rotação.                                                                                          //
+//    O valor informado deve estar em 'ms'.                                                                                                       //
+#define ROTATE_RANGE_TIME 2000                                                                                                                    //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Definições globais de Configuração da Placa.                                                                                                */
 //  Representa o ID da placa no contexto. O valor pode adotar qualqer número entre 1 e 9.                                                         //
@@ -24,6 +50,14 @@
 #define LIGHT_LEDS 2                                                                                                                              //
 //  Porta responsável pela câmera.                                                                                                                //
 #define CAMERA 3                                                                                                                                  //
+//  Motor Direito, entrada reversa.                                                                                                               //
+#define ENGINE_RIGHT_REVERSE 4                                                                                                                    //
+//  Motor Direito, entrada padrão.                                                                                                                //
+#define ENGINE_RIGHT 5                                                                                                                            //
+//  Motor Esquerdo, entrada padrão.                                                                                                               //
+#define ENGINE_LEFT 6                                                                                                                             //
+//  Motor Esquerdo, entrada reversa.                                                                                                              //
+#define ENGINE_LEFT_REVERSE 7                                                                                                                     //
 //  Porta do motor de abertura (e fechamento) do painel solar.                                                                                    //
 #define ENGINE_PAINEL_SOLAR 10                                                                                                                    //
 //  Porta de reversão do motor de abertura (e fechamento) do painel solar.                                                                        //
@@ -77,6 +111,19 @@ float specifit_painel_case_multiplier = 1;                                      
 Servo camera;                                                                                                                                     //
 //  Sinal de posicionamento da câmera.                                                                                                            //
 int camera_signal = 0;                                                                                                                            //
+//  Modo de movimentação do robo, alterna entre altomático ('true') ou manual ('false').                                                          //
+//    Por padrão o robo inicializa no automático, contudo, é possível alterar essa inicialização no código do Arduino 1.                          //
+bool robot_auto_move = true;                                                                                                                      //
+//  Direção de movimentação do robo. 1 = frente; 2 = trás; 3 = esquerda; 4 = direita; 0 = parar.                                                  //
+int robot_direction = 1;                                                                                                                          //
+//  Instante em 'ms' de inicialização de alguma atividade de movimentação.                                                                        //
+unsigned long start_move_time = 0;                                                                                                                //
+//  Instante em 'ms' da atividade anterior executada pelo robo.                                                                                   //
+unsigned long last_move_time = 0;                                                                                                                 //
+//  Informa se o robo deve retroceder ou não.                                                                                                     //
+bool robot_return = false;                                                                                                                        //
+//  Registro da última verificação de distância.                                                                                                  //
+unsigned long last_time_distance_calc = 0;                                                                                                        //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Inicializa as funções de comunicação I2C.                                                                                                   */
 //  Função responsável por enviar mensagens ao próximo arduino.                                                                                   //
@@ -90,6 +137,13 @@ void Receive();                                                                 
 //        ~ 'code': Código da função da mensagem recebida. Simboliza o que a função HandleData deve fazer com a mensagem.                         //
 //        ~ 'message': Mensagem recebida para ser interpretada.                                                                                   //
 void HandleData(int code, int message);                                                                                                           //
+/* ---------------------------------------------------------------------------------------------------------------------------------------------- */
+/*  ~ Inicializa as funções de movimentação do robo.                                                                                              */
+//  Responsável por informar se há ou não um objeto na distância mínima prevista nas configurações.                                               //
+bool CheckObstacles();                                                                                                                            //
+//  Responsável pela movimentação própriamente dita.                                                                                              //
+//      ~ 'robot_direction': direção para a qual o robo deve se dirigir.                                                                          //
+void Translate(int robot_direction);                                                                                                              //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Função responsável por enviar mensagens ao próximo arduino.                                                                                 */
 void SendTo(int to, int code, int message)                                                                                                        //
@@ -194,27 +248,108 @@ void Receive()                                                                  
   HandleData(_code, _message);                                                                                                                    //
 }                                                                                                                                                 //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
+/*  ~ Inicializa as funções do sensor ultrassônico.                                                                                               */
+bool CheckObstacles()                                                                                                                             //
+{                                                                                                                                                 //
+  //  ~ Envia um sinal pelo emissor Trigger do sensor ultrassônico.                                                                               //
+  digitalWrite(ULTRASOUND_SENSOR_TRIGGER, HIGH);                                                                                                  //
+  //  ~ O sinal deve ser enviado por pelo menos 10 microssegundos para poder ser reconhecido pelo sensor.                                         //
+  delayMicroseconds(10);                                                                                                                          //
+  //  ~ Interrompe o envio do sinal.                                                                                                              //
+  digitalWrite(ULTRASOUND_SENSOR_TRIGGER, LOW);                                                                                                   //
+                                                                                                                                                  //
+  //  ~ Captura em uma variável long o tempo de retorno.                                                                                          //
+  unsigned long timer = pulseIn(ULTRASOUND_SENSOR_ECHO, HIGH);                                                                                    //
+                                                                                                                                                  //
+  //  ~ Calcula a distância baseando-se na velocidade do som no ar.                                                                               //
+  float distance = (timer * (SOUND_SPEED_IN_AIR / 100.0)) / 2.0;                                                                                  //
+                                                                                                                                                  //
+  //  ~ Atualiza o tempo da checagem.                                                                                                             //
+  last_time_distance_calc = millis();                                                                                                             //
+                                                                                                                                                  //
+  //  ~ Por fim, retorna conforme a distância calculada está relacionada com o valor mínimo aceitável.                                            //
+  if (distance <= MIN_DISTANCE) return true; else return false;                                                                                   //
+}                                                                                                                                                 //
+/* ---------------------------------------------------------------------------------------------------------------------------------------------- */
+/*  ~ Responsável pela movimentação própriamente dita.                                                                                            */
+void Translate(int robot_direction)                                                                                                               //
+{                                                                                                                                                 //
+  //  ~ Verifica o tipo de movimentação de entrada.                                                                                               //
+  switch(robot_direction)                                                                                                                         //
+  {                                                                                                                                               //
+    //  ~ Caso o robo deva parar.                                                                                                                 //
+    case PARAR:                                                                                                                                   //
+        //  ~ Para os motores.                                                                                                                    //
+        digitalWrite(ENGINE_RIGHT, LOW);                                                                                                          //
+        digitalWrite(ENGINE_RIGHT_REVERSE, LOW);                                                                                                  //
+        digitalWrite(ENGINE_LEFT, LOW);                                                                                                           //
+        digitalWrite(ENGINE_LEFT_REVERSE, LOW);                                                                                                   //
+      break;                                                                                                                                      //
+    //  ~ Caso o robo deva ir para frente.                                                                                                        //
+    case FRENTE:                                                                                                                                  //
+        //  ~ Para os motores.                                                                                                                    //
+        digitalWrite(ENGINE_RIGHT, HIGH);                                                                                                         //
+        digitalWrite(ENGINE_RIGHT_REVERSE, LOW);                                                                                                  //
+        digitalWrite(ENGINE_LEFT, HIGH);                                                                                                          //
+        digitalWrite(ENGINE_LEFT_REVERSE, LOW);                                                                                                   //
+      break;                                                                                                                                      //
+    //  ~ Caso o robo deva ir para trás.                                                                                                          //
+    case ATRAS:                                                                                                                                   //
+        //  ~ Para os motores.                                                                                                                    //
+        digitalWrite(ENGINE_RIGHT, LOW);                                                                                                          //
+        digitalWrite(ENGINE_RIGHT_REVERSE, HIGH);                                                                                                 //
+        digitalWrite(ENGINE_LEFT, LOW);                                                                                                           //
+        digitalWrite(ENGINE_LEFT_REVERSE, HIGH);                                                                                                  //
+      break;                                                                                                                                      //
+    //  ~ Caso o robo deva virar para a esquerda.                                                                                                 //
+    case ESQUERDA:                                                                                                                                //
+        //  ~ Para os motores.                                                                                                                    //
+        digitalWrite(ENGINE_RIGHT, HIGH);                                                                                                         //
+        digitalWrite(ENGINE_RIGHT_REVERSE, LOW);                                                                                                  //
+        digitalWrite(ENGINE_LEFT, LOW);                                                                                                           //
+        digitalWrite(ENGINE_LEFT_REVERSE, HIGH);                                                                                                  //
+      break;                                                                                                                                      //
+    //  ~ Caso o robo deva virar para a direita.                                                                                                  //
+    case DIREITA:                                                                                                                                 //
+        //  ~ Para os motores.                                                                                                                    //
+        digitalWrite(ENGINE_RIGHT, LOW);                                                                                                          //
+        digitalWrite(ENGINE_RIGHT_REVERSE, HIGH);                                                                                                 //
+        digitalWrite(ENGINE_LEFT, HIGH);                                                                                                          //
+        digitalWrite(ENGINE_LEFT_REVERSE, LOW);                                                                                                   //
+      break;                                                                                                                                      //
+    //  ~ Caso nenhuma delas, retorna.                                                                                                            //
+    default:                                                                                                                                      //
+      return;                                                                                                                                     //
+  }                                                                                                                                               //
+  //  ~ Define o novo tempo de inicio do movimento.                                                                                               //
+  start_move_time = millis();                                                                                                                     //
+}                                                                                                                                                 //
+/* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Função do loop principal do sistema.                                                                                                        */
 void loop()                                                                                                                                       //
 {                                                                                                                                                 //
-  //  ~ Variaveis locais de estado para determinar alterações.                                                                                    //
+/* ---------------------------------------------------------------------------------------------------------------------------------------------- */
+/*  ~ Declaração das variáveis de estado locais, para realizar comparações pré-atualização.                                                       */
   bool _robot_power = robot_power;                                                                                                                //
   int _temp_signal = temp_signal;                                                                                                                 //
   int _gas_signal = gas_signal;                                                                                                                   //
   int _light_signal = light_signal;                                                                                                               //
   int _camera_signal = camera_signal;                                                                                                             //
-                                                                                                                                                  //
-  //  ~ Verifica atualizações de entrada de dados.                                                                                                //
+  int _robot_direction = robot_direction;                                                                                                         //
+/* ---------------------------------------------------------------------------------------------------------------------------------------------- */
+/*  ~ Faz o recebimento e dados via Serial.                                                                                                       */
   if (Serial.available() > 0) Receive();                                                                                                          //
                                                                                                                                                   //
+/* ---------------------------------------------------------------------------------------------------------------------------------------------- */
+/*  ~ Atualiza os sensores locais.                                                                                                                */
   //  ~ Realiza a leitura do sensor de temperatura.                                                                                               //
   _temp_signal = analogRead(TMP_SENSOR);                                                                                                          //
   //  ~ Realiza a leitura do sensor de gás.                                                                                                       //
   _gas_signal = analogRead(GAS_SENSOR);                                                                                                           //
   //  ~ Realiza a leitura do sensor de luz ambiente.                                                                                              //
   _light_signal = analogRead(LIGHT_SENSOR);                                                                                                       //
-                                                                                                                                                  //
-  //  ~ Verifica alterações de luz ambiente.                                                                                                      //
+/* ---------------------------------------------------------------------------------------------------------------------------------------------- */
+/*  ~ Verifica atualizações de luz ambiente.                                                                                                      */
   if (_light_signal != light_signal)                                                                                                              //
   {                                                                                                                                               //
     //  ~ Seta a alteração de sinal.                                                                                                              //
@@ -277,8 +412,10 @@ void loop()                                                                     
       }                                                                                                                                           //
     }                                                                                                                                             //
   }                                                                                                                                               //
-                                                                                                                                                  //
-  //  ~ Verifica alterações no sinal de temperatura.                                                                                              //
+  //  ~ Corrige o fator de multiplicidade do cálculo.                                                                                             //
+  if ((specifit_painel_case_multiplier > 1) or (specifit_painel_case_multiplier < 0)) specifit_painel_case_multiplier = 1;                        //
+/* ---------------------------------------------------------------------------------------------------------------------------------------------- */
+/*  ~ Faz verificação de temperatura ambiente.                                                                                                    */
   if (temp_signal != _temp_signal)                                                                                                                //
   {                                                                                                                                               //
     //  ~ Seta a alteração de sinal.                                                                                                              //
@@ -300,11 +437,8 @@ void loop()                                                                     
     //  ~ Envia a atualização para a central de controle.                                                                                         //
     //  [SEND TO - ADD HERE]
   }                                                                                                                                               //
-                                                                                                                                                  //
-  //  ~ Correção do fator especial.                                                                                                               //
-  if ((specifit_painel_case_multiplier > 1) or (specifit_painel_case_multiplier < 0)) specifit_painel_case_multiplier = 1;                        //
-                                                                                                                                                  //
-  //  ~ Verifica alterações no sinal de gás.                                                                                                      //
+/* ---------------------------------------------------------------------------------------------------------------------------------------------- */
+/*  ~ Verifica os sensores de gás ambiente.                                                                                                       */
   if (_gas_signal != gas_signal)                                                                                                                  //
   {                                                                                                                                               //
     //  ~ Seta a alteração de sinal.                                                                                                              //
@@ -317,17 +451,18 @@ void loop()                                                                     
     if(gas_percent > GAS_PERCENT_ERR) ;     //  [SEND TO - ADD HERE]
   }                                                                                                                                               //
                                                                                                                                                   //                                                                                                                                             //
-  //  ~ Verifica se ocorreu alteração de estado no funcionamento do robo.                                                                         //                                                                                                                                            //
-  //  ~ Verifica se o robo deve ser ligado ou desligado.                                                                                          //
+/* ---------------------------------------------------------------------------------------------------------------------------------------------- */
+/*  ~ Execuções quando o robo está ligado ou em ligação forçada devido a baixa temperatura.                                                       */
   if(((robot_power) or (robot_power_on_tmp)) and (!robot_power_off_tmp))                                                                          //                                                //
   {                                                                                                                                               //
-    //  ~ Acende a LED que indica que o robo está ligado.                                                                                         //
+/* ---------------------------------------------------------------------------------------------------------------------------------------------- */
+/*  ~ [SUB] Faz o acionamento das LEDs do robo.                                                                                                   */
     digitalWrite(POWER_LED, HIGH);                                                                                                                //
     //  ~ Liga os leds que foram desligados.                                                                                                      //
     digitalWrite(HEATER_LED, (bool) heater_led_status);                                                                                           //
     digitalWrite(LIGHT_LEDS, (bool) light_led_status);                                                                                            //
-                                                                                                                                                  //
-    //  ~ Rotaciona a câmera, caso necessário.                                                                                                    //
+/* ---------------------------------------------------------------------------------------------------------------------------------------------- */
+/*  ~ [SUB] Rotacionamento do servo onde a camera do robo estaria acoplada.                                                                       */
     if (_camera_signal != camera_signal)                                                                                                          //
     {                                                                                                                                             //
       //  ~ Calcula o ângulo.                                                                                                                     //
@@ -336,8 +471,122 @@ void loop()                                                                     
       //  ~ Efetua a rotação.                                                                                                                     //
       camera.write(angle);                                                                                                                        //        
     }                                                                                                                                             //
-                                                                                                                                                  //
-    //  ~ Verifica se deve abrir os paineis solares.                                                                                              //
+/* ---------------------------------------------------------------------------------------------------------------------------------------------- */
+/*  ~ [SUB] Executa comandos de translação antes da fixação de ações locais.                                                                      */
+    if (_robot_direction != robot_direction)                                                                                                      //
+    {                                                                                                                                             //
+      //  ~ Calcula o tempo de movimentação anterior com base no tipo da movimentação anterior.                                                   //
+      if (_robot_direction == FRENTE) last_move_time = millis() - start_move_time;                                                                //
+      else last_move_time = 0;                                                                                                                    //
+      //  ~ Altera a direção do robo.                                                                                                             //
+      Translate(robot_direction);                                                                                                                 //
+      //  ~ Informa que a alteração JÁ FOI EXECUTADA.                                                                                             //
+      _robot_direction = robot_direction;                                                                                                         //
+      //  ~ Informa a alteração de movimento.                                                                                                     //
+      //  [SEND TO - ADD HERE]
+    }                                                                                                                                             //
+/* ---------------------------------------------------------------------------------------------------------------------------------------------- */
+/*  ~ [SUB] Realiza as configurações e calculos locais de movimentação e permissão de translação do robo, tanto em modo automático quanto em modo //
+//  manual.                                                                                                                                       */
+    switch (robot_direction)                                                                                                                      //
+    {                                                                                                                                             //
+      //  ~ Verificações caso o robo esteja indo para a frente.                                                                                   //
+      case FRENTE:                                                                                                                                //
+        //  ~ Verifica se o robo deve ou não analizar a existência de um objeto a frente.                                                         //
+        //  O robo apenas irá realizar a medição de distância 1 vez a cada o tempo inserido nas configurações.                                    //
+        if (millis() >= (last_time_distance_calc + MEASURING_RANGE_TIME))                                                                         //
+        {                                                                                                                                         //
+          //  ~ Faz a verificação, caso haja um objeto a frente, realiza os procedimentos conforme a lógica proposta.                             //
+          if (CheckObstacles())                                                                                                                   //
+          {                                                                                                                                       //
+            //  ~ Se o robo estiver no modo automático e encontrar um obstáculo, ele deverá virar a esquerda.                                     //
+            //  Caso ele esteja no modo manual, ele deverá parar.                                                                                 //
+            if (robot_auto_move) robot_direction = ESQUERDA;                                                                                      //
+            else robot_direction = PARAR;                                                                                                         //
+          }                                                                                                                                       //
+        }                                                                                                                                         //
+        break;                                                                                                                                    //
+      //  ~ Verificações caso o robo esteja indo para trás.                                                                                       //
+      case ATRAS:                                                                                                                                 //
+          //  ~ Se o modo automático estiver ligado, altera para o robo seguir para a frente.                                                     //
+          if (robot_auto_move) { robot_direction = FRENTE; last_time_distance_calc = millis() - MEASURING_RANGE_TIME; break; }                    //
+          //  ~ Verifica se o robo pode continuar indo para trás.                                                                                 //
+          if (millis() >= (start_move_time + last_move_time))                                                                                     //
+          {                                                                                                                                       //
+            //  ~ Como o robo não pode ir para trás no modo automático, apenas trata para o modo manual parando o robo.                           //
+            robot_direction = PARAR;                                                                                                              //
+          }                                                                                                                                       //
+        break;                                                                                                                                    //
+      //  ~ Verificação caso o robo esteja virando para a esquerda.                                                                               //
+      case ESQUERDA:                                                                                                                              //
+        //  ~ Verifica a conclusão da rotação.                                                                                                    //
+        if (millis() >= (start_move_time + ROTATE_RANGE_TIME))                                                                                    //
+        {                                                                                                                                         //
+          //  ~ Se estiver no modo automático, ele verifica se tem algum obstáculo a frente. Caso haja, ele rotaciona o robo para a direita.      //
+          if ((robot_auto_move) and (CheckObstacles())) robot_direction = DIREITA;                                                                //
+          //  ~ Caso não haja, ele segue em frente.                                                                                               //
+          else if ((robot_auto_move) and (!CheckObstacles()))                                                                                     //
+          {                                                                                                                                       //
+            robot_direction = FRENTE;                                                                                                             //
+            last_time_distance_calc = millis() - MEASURING_RANGE_TIME;                                                                            //
+          }                                                                                                                                       //
+          //  ~ Se ele estiver no modo manual, ele para.                                                                                          //
+          else robot_direction = PARAR;                                                                                                           //
+        }                                                                                                                                         //
+        break;                                                                                                                                    //
+      //  ~ Verificação caso o robo esteja virando para a direita.                                                                                //
+      case DIREITA:                                                                                                                               //
+          //  ~ Caso esteja no modo automático, a rotação para a direita é dobrada, então, separa-se os dois casos.                               //
+          //  No caso, por ser mais simples, tratamos do modo manual. Caso o tempo de execução seja atingido, o robo para.                        //
+          if(!robot_auto_move) { if (millis() >= (start_move_time + ROTATE_RANGE_TIME)) robot_direction = PARAR; }                                //
+          else                                                                                                                                    //
+          {                                                                                                                                       //
+            //  ~ Multiplicador para as rotações.                                                                                                 //
+            int turns = robot_return ? 1 : 2;                                                                                                     //
+            //  ~ Verifica se a(s) volta(s) já foram concluidas.                                                                                  //
+            if (millis() >= (start_move_time + (turns * ROTATE_RANGE_TIME)))                                                                      //
+            {                                                                                                                                     //
+              //  ~ Se o retorno estiver desligado ele verifica para seguir em frente. Caso haja obstáculos, ele vira para a direita e liga o     //
+              //  retorno.                                                                                                                        //
+              if ((!robot_return) and (CheckObstacles())) { robot_direction = DIREITA; robot_return = true; }                                     //
+              //  ~ Se não houver obstáculos, ele segue em frente.                                                                                //
+              else if ((!robot_return) and (!CheckObstacles()))                                                                                   //
+              {                                                                                                                                   //
+                robot_direction = FRENTE;                                                                                                         //
+                last_time_distance_calc = millis() - MEASURING_RANGE_TIME;                                                                        //
+              }                                                                                                                                   //
+              //  ~ Se o retorno estiver ligado e não houverem obstáculos, ele segue em frente e desliga o retorno.                               //
+              else if ((robot_return) and (CheckObstacles())) { robot_direction = FRENTE; robot_return = false; }                                 //
+              //  ~ Se o retorno estiver ligado e houverem obstáculos, ele desliga o robo e informa o erro.                                       //
+              else                                                                                                                                //
+              {                                                                                                                                   //
+                //  ~ Desliga o robo.                                                                                                             //
+                robot_power = false;                                                                                                              //
+                //  ~ Para o robo.                                                                                                                //
+                robot_return = PARAR;                                                                                                             //
+                //  ~ Informa o erro (código de erro: 2 | destino: <4>).                                                                          //
+                //  [SEND TO - ADD HERE]
+              }                                                                                                                                   //
+            }                                                                                                                                     //
+          }                                                                                                                                       //
+        break;                                                                                                                                    //
+      //  ~ Se o robo estiver parado.                                                                                                             //
+      case PARAR:                                                                                                                                 //
+        //  ~ Se o robo estiver no modo automático e estiver parado ele automaticamente troca para "seguir em frente".                            //
+        if (robot_auto_move) { robot_direction = FRENTE; last_time_distance_calc = millis() - MEASURING_RANGE_TIME; }                             //
+        break;                                                                                                                                    //
+      //  ~ Se nenhuma das opções, para o robo e informa um erro.                                                                                 //
+      default:                                                                                                                                    //
+        //  ~ Para o robo.                                                                                                                        //
+        robot_direction = PARAR;                                                                                                                  //
+        //  ~ Informa o erro (código de erro: 1 | destino: <4>).                                                                                  //
+        //  [SEND TO - ADD HERE]
+        break;                                                                                                                                    //
+    }                                                                                                                                             //
+/* ---------------------------------------------------------------------------------------------------------------------------------------------- */
+/*  ~ [SUB] Abertura do painel solar (caso ordenado).                                                                                             */
+/* ---------------------------------------------------------------------------------------------------------------------------------------------- */
+/*  ~ [SUB] Abertura do painel solar (caso ordenado).                                                                                             */
     if(opening_painel_solar)                                                                                                                      //
     {                                                                                                                                             //
       //  ~ Mantem o motor para abertura do painel funcionando.                                                                                   //
@@ -354,8 +603,9 @@ void loop()                                                                     
         digitalWrite(ENGINE_PAINEL_SOLAR_REVERSE, LOW);                                                                                           //
       }                                                                                                                                           //
     }                                                                                                                                             //
-    //  ~ Verifica se deve fechar os paineis solares.                                                                                             //
-    if(closing_painel_solar)                                                                                                                      //
+/* ---------------------------------------------------------------------------------------------------------------------------------------------- */
+/*  ~ [SUB] ] Fechamento do painel solar (caso ordenado).                                                                                         */
+    else if(closing_painel_solar)                                                                                                                 //
     {                                                                                                                                             //
       //  ~ Mantem o motor para abertura do painel funcionando.                                                                                   //
       digitalWrite(ENGINE_PAINEL_SOLAR, LOW);                                                                                                     //
@@ -370,8 +620,18 @@ void loop()                                                                     
         digitalWrite(ENGINE_PAINEL_SOLAR, LOW);                                                                                                   //
         digitalWrite(ENGINE_PAINEL_SOLAR_REVERSE, LOW);                                                                                           //
       }                                                                                                                                           //
+/* ---------------------------------------------------------------------------------------------------------------------------------------------- */
+/*  ~ [SUB] Desligamento dos motores do painel solar (automático).                                                                                */
+      else                                                                                                                                        //
+      {                                                                                                                                           //
+        //  ~ Para os motores.                                                                                                                    //
+        digitalWrite(ENGINE_PAINEL_SOLAR, LOW);                                                                                                   //
+        digitalWrite(ENGINE_PAINEL_SOLAR_REVERSE, LOW);                                                                                           //
+      }                                                                                                                                           //
     }                                                                                                                                             //
   }                                                                                                                                               //
+/* ---------------------------------------------------------------------------------------------------------------------------------------------- */
+/*  ~ Execuções quando o robo está desligado ou em alta temperatura.                                                                              */
   else                                                                                                                                            //
   {                                                                                                                                               //
     //  ~ Apaga a LED que indica que o robo está ligado.                                                                                          //
