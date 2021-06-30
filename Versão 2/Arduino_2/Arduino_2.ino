@@ -17,10 +17,6 @@
 #define ESQUERDA 3                                                                                                                                //
 //  Definição do valor que indica que o robo deve ir para  direita.                                                                               //
 #define DIREITA 4                                                                                                                                 //
-//  Porta do sensor ultrassônico, responsável por determinar a existência de objetos a frente. Porta de emissão de eco.                           //
-#define ULTRASOUND_SENSOR_TRIGGER 4                                                                                                               //
-//  Porta do sensor ultrassônico, responsável por determinar a existência de objetos a frente. Porta de recepção de eco.                          //
-#define ULTRASOUND_SENSOR_ECHO 5                                                                                                                  //
 //  Velocidade do som no ar em m/s.                                                                                                               //
 //    No caso, utilizamos a velocidade do som no ar na CATP (Condições Ambientes de Temperatura e Pressão), sendo assim, uma temperatura de 25°C. //
 #define SOUND_SPEED_IN_AIR 346.3                                                                                                                  //
@@ -54,10 +50,14 @@
 #define ENGINE_RIGHT_REVERSE 4                                                                                                                    //
 //  Motor Direito, entrada padrão.                                                                                                                //
 #define ENGINE_RIGHT 5                                                                                                                            //
-//  Motor Esquerdo, entrada padrão.                                                                                                               //
-#define ENGINE_LEFT 6                                                                                                                             //
+//  Porta do sensor ultrassônico, responsável por determinar a existência de objetos a frente. Porta de recepção de eco.                          //
+#define ULTRASOUND_SENSOR_ECHO 6                                                                                                                  //
+//  Porta do sensor ultrassônico, responsável por determinar a existência de objetos a frente. Porta de emissão de eco.                           //
+#define ULTRASOUND_SENSOR_TRIGGER 7                                                                                                               //
 //  Motor Esquerdo, entrada reversa.                                                                                                              //
-#define ENGINE_LEFT_REVERSE 7                                                                                                                     //
+#define ENGINE_LEFT_REVERSE 8                                                                                                                     //
+//  Motor Esquerdo, entrada padrão.                                                                                                               //
+#define ENGINE_LEFT 9                                                                                                                             //
 //  Porta do motor de abertura (e fechamento) do painel solar.                                                                                    //
 #define ENGINE_PAINEL_SOLAR 10                                                                                                                    //
 //  Porta de reversão do motor de abertura (e fechamento) do painel solar.                                                                        //
@@ -124,6 +124,8 @@ unsigned long last_move_time = 0;                                               
 bool robot_return = false;                                                                                                                        //
 //  Registro da última verificação de distância.                                                                                                  //
 unsigned long last_time_distance_calc = 0;                                                                                                        //
+//  Define o sinal de velocidade do robo.                                                                                                         //
+int speed_signal = 0;                                                                                                                             //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Inicializa as funções de comunicação I2C.                                                                                                   */
 //  Função responsável por enviar mensagens ao próximo arduino.                                                                                   //
@@ -584,7 +586,15 @@ void loop()                                                                     
         break;                                                                                                                                    //
     }                                                                                                                                             //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
-/*  ~ [SUB] Abertura do painel solar (caso ordenado).                                                                                             */
+/*  ~ [SUB] Segunda atualização de direção do robo, pós-calculos de espaço.                                                                       */
+    if (_robot_direction != robot_direction)                                                                                                      //
+    {                                                                                                                                             //
+      //  ~ Calcula o tempo de movimentação anterior com base no tipo da movimentação anterior.                                                   //
+      if (_robot_direction == FRENTE) last_move_time = millis() - start_move_time;                                                                //
+      else last_move_time = 0;                                                                                                                    //
+      //  ~ Altera a direção do robo.                                                                                                             //
+      Translate(robot_direction);                                                                                                                 //
+    }                                                                                                                                             //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ [SUB] Abertura do painel solar (caso ordenado).                                                                                             */
     if(opening_painel_solar)                                                                                                                      //
@@ -640,6 +650,8 @@ void loop()                                                                     
     heater_led_status = (bool) digitalRead(HEATER_LED);                                                                                           //
     light_led_status = (bool) digitalRead(LIGHT_LEDS);                                                                                            //
                                                                                                                                                   //
+    //  ~ Para o robo.                                                                                                                            //
+    Translate(PARAR);                                                                                                                             //
                                                                                                                                                   //
     //  ~ Verifica se já iniciou o fechamento.                                                                                                    //
     if ((open_solar_painel) and (!closing_painel_solar))                                                                                          //
@@ -695,12 +707,19 @@ void setup()                                                                    
   //  ~ Faz o arduino aguardar a inicialização da comunicação Serial antes de prosseguir.                                                         //
   while(!Serial);                                                                                                                                 //
                                                                                                                                                   //
+  //  ~ Define o modo de entrada (INPUT) para as respectivas portas.                                                                              //
+  //  ~ Porta de entrada do sinal enviado pelo receptor do sensor ultrassônico (ECHO).                                                            //
+  pinMode(ULTRASOUND_SENSOR_ECHO, INPUT);                                                                                                         //
+                                                                                                                                                  //
   //  ~ Coloca as portas de modo de saída como 'OUTPUT'.                                                                                          //
   pinMode(HEATER_LED, OUTPUT);                                                                                                                    //
   pinMode(POWER_LED, OUTPUT);                                                                                                                     //
   pinMode(LIGHT_LEDS, OUTPUT);                                                                                                                    //
   pinMode(ENGINE_PAINEL_SOLAR, OUTPUT);                                                                                                           //
   pinMode(ENGINE_PAINEL_SOLAR_REVERSE, OUTPUT);                                                                                                   //
+  pinMode(ULTRASOUND_SENSOR_TRIGGER, OUTPUT);                                                                                                     //
+  pinMode(ENGINE_RIGHT_REVERSE, OUTPUT);                                                                                                          //
+  pinMode(ENGINE_LEFT_REVERSE, OUTPUT);                                                                                                           //
                                                                                                                                                   //
   //  ~ Faz a leitura padrão dos valores, para garatir sincronização.                                                                             //
   temp_signal = analogRead(TMP_SENSOR);                                                                                                           //
@@ -742,6 +761,15 @@ void setup()                                                                    
   heater_led_status = (bool) digitalRead(HEATER_LED);                                                                                             //
   //  ~ Salva o status das luzes frontais.                                                                                                        //  
   light_led_status = (bool) digitalRead(LIGHT_LEDS);                                                                                              //
+                                                                                                                                                  //
+  //  ~ Pré-define os envios das portas como LOW.                                                                                                 //
+  digitalWrite(ULTRASOUND_SENSOR_TRIGGER, LOW);                                                                                                   //
+  analogWrite(ENGINE_RIGHT, 0);                                                                                                                   //
+  digitalWrite(ENGINE_RIGHT_REVERSE, LOW);                                                                                                        //
+  analogWrite(ENGINE_LEFT, 0);                                                                                                                    //
+  digitalWrite(ENGINE_LEFT_REVERSE, LOW);                                                                                                         //
+  digitalWrite(ENGINE_PAINEL_SOLAR, LOW);                                                                                                         //
+  digitalWrite(ENGINE_PAINEL_SOLAR_REVERSE, LOW);                                                                                                 //
 }                                                                                                                                                 //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Função responsável pelo tratamento dos dados recebido de outro arduino.                                                                     */
