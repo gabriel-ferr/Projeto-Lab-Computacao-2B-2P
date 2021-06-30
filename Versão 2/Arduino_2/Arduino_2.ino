@@ -1,4 +1,7 @@
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
+/*  ~ Inclusões de bibliotecas externas.                                                                                                          */
+#include <Servo.h>                                                                                                                                //
+/* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Defiições das configurações do robo.                                                                                                        */
 //  Define o percentual de erro do sensor de gás.                                                                                                 //
 #define GAS_PERCENT_ERR 5                                                                                                                         //
@@ -19,6 +22,8 @@
 /*  ~ Definições locais de Configuração da Placa (PORTAS).                                                                                        */
 //  Porta responsável pelo LED das luzes frontais do robo.                                                                                        //
 #define LIGHT_LEDS 2                                                                                                                              //
+//  Porta responsável pela câmera.                                                                                                                //
+#define CAMERA 3                                                                                                                                  //
 //  Porta do motor de abertura (e fechamento) do painel solar.                                                                                    //
 #define ENGINE_PAINEL_SOLAR 10                                                                                                                    //
 //  Porta de reversão do motor de abertura (e fechamento) do painel solar.                                                                        //
@@ -68,6 +73,10 @@ bool closing_painel_solar = false;                                              
 unsigned long start_func_painel_solar = 2592000000;                                                                                               //
 //  Multiplicador de casos específicos.(1 - ((start_func_painel_solar + PAINEL_SOLAR_FUNC_DELAY) - millis()) / PAINEL_SOLAR_FUNC_DELAY))          //
 float specifit_painel_case_multiplier = 1;                                                                                                        //
+//  Estrutura da câmera.                                                                                                                          //
+Servo camera;                                                                                                                                     //
+//  Sinal de posicionamento da câmera.                                                                                                            //
+int camera_signal = 0;                                                                                                                            //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Inicializa as funções de comunicação I2C.                                                                                                   */
 //  Função responsável por enviar mensagens ao próximo arduino.                                                                                   //
@@ -193,6 +202,7 @@ void loop()                                                                     
   int _temp_signal = temp_signal;                                                                                                                 //
   int _gas_signal = gas_signal;                                                                                                                   //
   int _light_signal = light_signal;                                                                                                               //
+  int _camera_signal = camera_signal;                                                                                                             //
                                                                                                                                                   //
   //  ~ Verifica atualizações de entrada de dados.                                                                                                //
   if (Serial.available() > 0) Receive();                                                                                                          //
@@ -203,10 +213,6 @@ void loop()                                                                     
   _gas_signal = analogRead(GAS_SENSOR);                                                                                                           //
   //  ~ Realiza a leitura do sensor de luz ambiente.                                                                                              //
   _light_signal = analogRead(LIGHT_SENSOR);                                                                                                       //
-                                                                                                                                                  //
-  //  ~ Correção boleana do painel solar.                                                                                                         //
-  if ((open_solar_painel) and (opening_painel_solar)) opening_painel_solar = false;                                                               //
-  if ((!open_solar_painel) and (closing_painel_solar)) closing_painel_solar = false;                                                              //
                                                                                                                                                   //
   //  ~ Verifica alterações de luz ambiente.                                                                                                      //
   if (_light_signal != light_signal)                                                                                                              //
@@ -321,11 +327,24 @@ void loop()                                                                     
     digitalWrite(HEATER_LED, (bool) heater_led_status);                                                                                           //
     digitalWrite(LIGHT_LEDS, (bool) light_led_status);                                                                                            //
                                                                                                                                                   //
+    //  ~ Rotaciona a câmera, caso necessário.                                                                                                    //
+    if (_camera_signal != camera_signal)                                                                                                          //
+    {                                                                                                                                             //
+      //  ~ Calcula o ângulo.                                                                                                                     //
+      int angle = map(camera_signal, 0, 1023, 0, 180);                                                                                            //
+      Serial.println(angle);
+      //  ~ Efetua a rotação.                                                                                                                     //
+      camera.write(angle);                                                                                                                        //        
+    }                                                                                                                                             //
+                                                                                                                                                  //
     //  ~ Verifica se deve abrir os paineis solares.                                                                                              //
     if(opening_painel_solar)                                                                                                                      //
     {                                                                                                                                             //
+      //  ~ Mantem o motor para abertura do painel funcionando.                                                                                   //
+      digitalWrite(ENGINE_PAINEL_SOLAR, HIGH);                                                                                                    //
+      digitalWrite(ENGINE_PAINEL_SOLAR_REVERSE, LOW);                                                                                             //
       //  ~ Verifica se o tempo foi ou não atingido.                                                                                              //
-      if(millis() > = start_func_painel_solar + (specifit_painel_case_multiplier * PAINEL_SOLAR_FUNC_DELAY))                                      //
+      if(millis() >= (start_func_painel_solar + (specifit_painel_case_multiplier * PAINEL_SOLAR_FUNC_DELAY)))                                     //
       {                                                                                                                                           //
         //  ~ Informa que o painel solar já foi aberto.                                                                                           //
         opening_painel_solar = false;                                                                                                             //
@@ -334,10 +353,21 @@ void loop()                                                                     
         digitalWrite(ENGINE_PAINEL_SOLAR, LOW);                                                                                                   //
         digitalWrite(ENGINE_PAINEL_SOLAR_REVERSE, LOW);                                                                                           //
       }                                                                                                                                           //
-      else                                                                                                                                        //
+    }                                                                                                                                             //
+    //  ~ Verifica se deve fechar os paineis solares.                                                                                             //
+    if(closing_painel_solar)                                                                                                                      //
+    {                                                                                                                                             //
+      //  ~ Mantem o motor para abertura do painel funcionando.                                                                                   //
+      digitalWrite(ENGINE_PAINEL_SOLAR, LOW);                                                                                                     //
+      digitalWrite(ENGINE_PAINEL_SOLAR_REVERSE, HIGH);                                                                                            //
+      //  ~ Verifica se o tempo foi ou não atingido.                                                                                              //
+      if(millis() >= (start_func_painel_solar + (specifit_painel_case_multiplier * PAINEL_SOLAR_FUNC_DELAY)))                                     //
       {                                                                                                                                           //
-        //  ~ Mantem o motor para abertura do painel funcionando.                                                                                 //
-        digitalWrite(ENGINE_PAINEL_SOLAR, HIGH);                                                                                                  //
+        //  ~ Informa que o painel solar já foi aberto.                                                                                           //
+        closing_painel_solar = false;                                                                                                             //
+        open_solar_painel = false;                                                                                                                //
+        //  ~ Para os motores.                                                                                                                    //
+        digitalWrite(ENGINE_PAINEL_SOLAR, LOW);                                                                                                   //
         digitalWrite(ENGINE_PAINEL_SOLAR_REVERSE, LOW);                                                                                           //
       }                                                                                                                                           //
     }                                                                                                                                             //
@@ -349,6 +379,43 @@ void loop()                                                                     
     //  ~ Salva o status dos leds antes de desligar.                                                                                              //
     heater_led_status = (bool) digitalRead(HEATER_LED);                                                                                           //
     light_led_status = (bool) digitalRead(LIGHT_LEDS);                                                                                            //
+                                                                                                                                                  //
+                                                                                                                                                  //
+    //  ~ Verifica se já iniciou o fechamento.                                                                                                    //
+    if ((open_solar_painel) and (!closing_painel_solar))                                                                                          //
+    {                                                                                                                                             //
+      //  ~ Informa o fechamento.                                                                                                                 //
+      closing_painel_solar = true;                                                                                                                //
+      //  ~ Altera o multiplicador.                                                                                                               //
+      specifit_painel_case_multiplier = 1.0;                                                                                                      //
+      //  ~ Altera o inicio da função.                                                                                                            //
+      start_func_painel_solar = millis();                                                                                                         //
+    }                                                                                                                                             //
+                                                                                                                                                  //
+    //  ~ Verifica se é para fechar.                                                                                                              //
+    if (closing_painel_solar)                                                                                                                     //
+    {                                                                                                                                             //
+      //  ~ Aciona os motores de fechamento.                                                                                                      //
+      digitalWrite(ENGINE_PAINEL_SOLAR, LOW);                                                                                                     //
+      digitalWrite(ENGINE_PAINEL_SOLAR_REVERSE, LOW);                                                                                             //
+      //  ~ Verifica se atingiu o tempo.                                                                                                          //
+      if(millis() >= (start_func_painel_solar + (specifit_painel_case_multiplier * PAINEL_SOLAR_FUNC_DELAY)))                                     //
+      {                                                                                                                                           //
+        //  ~ Informa que o painel solar já foi aberto.                                                                                           //
+        closing_painel_solar = false;                                                                                                             //
+        open_solar_painel = false;                                                                                                                //
+        //  ~ Para os motores.                                                                                                                    //
+        digitalWrite(ENGINE_PAINEL_SOLAR, LOW);                                                                                                   //
+        digitalWrite(ENGINE_PAINEL_SOLAR_REVERSE, LOW);                                                                                           //
+      }                                                                                                                                           //
+                                                                                                                                                  //
+    }                                                                                                                                             //
+    else                                                                                                                                          //
+    {                                                                                                                                             //
+      //  ~ Para os motores.                                                                                                                      //
+      digitalWrite(ENGINE_PAINEL_SOLAR, LOW);                                                                                                     //
+      digitalWrite(ENGINE_PAINEL_SOLAR_REVERSE, LOW);                                                                                             //
+    }                                                                                                                                             //
                                                                                                                                                   //
     //  ~ Apaga o LED que indica o funcionamento do aquecedor.                                                                                    //
     digitalWrite(HEATER_LED, LOW);                                                                                                                //
@@ -386,7 +453,7 @@ void setup()                                                                    
   if (temperature > 100) { robot_power = false; digitalWrite(HEATER_LED, LOW); robot_power_off_tmp = true; }                                      //
   else if (temperature < 0) { robot_power = true; digitalWrite(HEATER_LED, HIGH); heater_led_status = true; robot_power_on_tmp = true; }          //
   else { digitalWrite(HEATER_LED, LOW); robot_power_off_tmp = false; robot_power_on_tmp = false; }                                                //
-                                                                                                                                                  
+                                                                                                                                                  //
   //  ~ Verifica alterações de luz ambiente.                                                                                                      //                                                                                                                                             //
   //  ~ Se o sinal for maior do que 100, está escuro.                                                                                             //
   if(light_signal > 100)                                                                                                                          //
@@ -408,6 +475,9 @@ void setup()                                                                    
     start_func_painel_solar = millis();                                                                                                           //
   }                                                                                                                                               //
                                                                                                                                                   //
+  //  ~ Agrega a camera ao controle do servo.                                                                                                     //
+  camera.attach(CAMERA);                                                                                                                          //
+                                                                                                                                                  //
   //  ~ Salva o status do led de aquecimento.                                                                                                     //
   heater_led_status = (bool) digitalRead(HEATER_LED);                                                                                             //
   //  ~ Salva o status das luzes frontais.                                                                                                        //  
@@ -423,6 +493,10 @@ void HandleData(int code, int message)                                          
     //  ~ Altera o estado do LED entre ligado e desligado conforme recebido.                                                                      //
     case 0:                                                                                                                                       //
       robot_power = (bool) message;                                                                                                               //
+      break;                                                                                                                                      //
+    //  ~ Recebe a posição da câmera.                                                                                                             //
+    case 1:                                                                                                                                       //
+      camera_signal = message;                                                                                                                    //
       break;                                                                                                                                      //
   }                                                                                                                                               //
 }                                                                                                                                                 //
