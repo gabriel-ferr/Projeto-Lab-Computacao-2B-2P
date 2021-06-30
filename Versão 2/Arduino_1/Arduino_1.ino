@@ -13,6 +13,8 @@
 /*  ~ Definições locais de Configuração da Placa (PORTAS).                                                                                        */
 //  Porta responsável pelo interruptor de ligado e desligado.                                                                                     //
 #define POWER_INT 2                                                                                                                               //
+//  Porta responsável pela mudança entre automático e manual do robo.                                                                             //
+#define ROBOT_MODE 3                                                                                                                              //
 //  Porta reponsável pelo potenciometro de controle da câmera.                                                                                    //
 #define CAMERA A5                                                                                                                                 //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
@@ -48,6 +50,8 @@ typedef struct                                                                  
 /*  ~ Variáveis de estado utilizadas no funcionamento do código.                                                                                  */
 //  Variável responsável por determinar se o robo está ligado ou desligado.                                                                       //
 bool robot_power;                                                                                                                                 //
+//  Indica se o robo está no modo automático ou não.                                                                                              //
+bool robot_automatic;                                                                                                                             //
 //  Variável responsável por armazenar o sinal do potenciometro de controle da câmera.                                                            //
 int camera_signal;                                                                                                                                //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
@@ -69,12 +73,6 @@ unsigned long LastMessage;                                                      
 //        ~ 'code': Código da função da mensagem enviada. Pode assumir valores de 0 a 99.                                                         //
 //        ~ 'message': Mensagem propriamente dita.                                                                                                //
 void SendTo(int to, int code, int message);                                                                                                       //
-//  Função responsável por receber as mensagens enviadas pelos demais arduinos.                                                                   //
-void Receive();                                                                                                                                   //
-//  Função responsável pelo tratamento dos dados recebido de outro arduino.                                                                       //
-//        ~ 'code': Código da função da mensagem recebida. Simboliza o que a função HandleData deve fazer com a mensagem.                         //
-//        ~ 'message': Mensagem recebida para ser interpretada.                                                                                   //
-void HandleData(int code, int message);                                                                                                           //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Inicializa as funções do sistema de delay.                                                                                                  */
 //  Define uma nova mensagem a ser inclusa no sistema de delay.                                                                                   //
@@ -138,56 +136,6 @@ void SendTo(int to, int code, int message)                                      
                                                                                                                                                   //
 }                                                                                                                                                 //
 /* ---------------------------------------------------------------------------------------------------------------------------------------------- */
-/*  ~ Função responsável por receber as mensagens enviadas pelos demais arduinos.                                                                 */
-void Receive()                                                                                                                                    //
-{                                                                                                                                                 //
-  //  ~ Faz a leitura da mensagem recebida.                                                                                                       //
-  unsigned long _buffer = (unsigned long) (Serial.readString().toInt());                                                                          //
-                                                                                                                                                  //
-  //  ~ Verifica a validade da mensagem recebida (se ela possui ou não um valor dentro dos limites do buffer).                                    //
-  if ((_buffer < 12000000) or (((CHAIN_LOOP) and (_buffer > 98991023)) or ((!CHAIN_LOOP) and (_buffer > 89991023)))) return;                      //
-                                                                                                                                                  //
-  //  ~ Recupera do buffer os valores de 'from', 'to', 'code' e 'message'.                                                                        //
-  // A ordem de remoção pouco importa, porém, o código fará isso na ordem inversa a utilizada na construção do buffer de envio.                   //
-  //  ~ Recupera do buffer o ID do Arduino de origem ('from').                                                                                    //
-  int _from = (int) (_buffer / 10000000UL);                                                                                                       //
-  //  ~ Recupera do buffer o ID do Arduino de destino ('to').                                                                                     //
-  int _to = (int) ((_buffer / 1000000UL) % 10);                                                                                                   //
-  //  ~ Recupera do buffer o código da função da mensagem ('code').                                                                               //
-  int _code = (int) ((_buffer / 10000UL) % 100);                                                                                                  //
-  //  ~ Recupera do buffer a mensagem recebida ('message').                                                                                       //
-  int _message = (int) (_buffer % 10000UL);                                                                                                       //
-                                                                                                                                                  //
-  //  ~ Verifica se o arduino de origem é o anterior a este. Isso evita o desemparelhamento das mensagens, pois, ignora possiveis erros. Caso a   //
-  // CHAIN_LOOP esteja ativa ele permite o envio do Arduino de ID CHAIN_LIMIT para um Arduino de ID inferior.                                     //
-  if(((!CHAIN_LOOP) and (_from != ID - 1)) or ((CHAIN_LOOP) and ((_from != ID - 1) or (_from == CHAIN_LIMIT)))) return;                           //
-  //  ~ Verifica se o destino da mensagem é diferente do ID do Arduino atual. Caso for, faz a análise para o reenvio da mensagem na cadeia.       //
-  if (_to != ID)                                                                                                                                  //
-  {                                                                                                                                               //
-    //  ~ Caso o CHAIN_LOOP esteja desligado, ele ignora destinos anteriores na cadeia.                                                           //
-    if ((!CHAIN_LOOP) and ((_to < ID) and (_to != 0))) return;                                                                                    //
-    //  ~ Repassa a mensagem para o próximo arduino. Ele sempre irá ignorar mensagens que ultrapassem o limite da cadeia.                         //
-    if (_to <= CHAIN_LIMIT) SendTo(_to, _code, _message);                                                                                         //
-    //  ~ Se não for para interpretar a mensagem, ignora.                                                                                         //
-    if (_to != 0) return;                                                                                                                         //
-  }                                                                                                                                               //
-  //  ~ Se a função de debug estiver ativa, faz o debug da mensagem.                                                                              //
-  if(DEBUG)                                                                                                                                       //
-  {                                                                                                                                               //
-    Serial.print("[RECEIVED]: ");                                                                                                                 //
-    Serial.print(_message);                                                                                                                       //
-    Serial.print(" from [");                                                                                                                      //
-    Serial.print(_from);                                                                                                                          //
-    Serial.print("] with code <");                                                                                                                //
-    Serial.print(_code);                                                                                                                          //
-    Serial.print("> in ");                                                                                                                        //
-    Serial.print(millis());                                                                                                                       //
-    Serial.println("ms.");                                                                                                                        //
-  }                                                                                                                                               //
-  //  ~ Envia o código para o tratamento dos dados recebidos.                                                                                     //
-  HandleData(_code, _message);                                                                                                                    //
-}                                                                                                                                                 //
-/* ---------------------------------------------------------------------------------------------------------------------------------------------- */
 /*  ~ Define uma nova mensagem a ser inclusa no sistema de delay.                                                                                 */
 void AddMessage(int to, int code, int message)                                                                                                    //
 {                                                                                                                                                 //
@@ -228,9 +176,6 @@ void loop()                                                                     
                                                                                                                                                   //
   //  ~ Verifica se a última mensagem foi enviada a um tempo considerável para reiniciar a dormência.                                             //
   if (LastMessage <= (millis() + (SleepMultiplyer * DELAY_SLEEP) + RESET_SLEEP)) { LastMessage = 2592000000; SleepMultiplyer = 0; }               //
-                                                                                                                                                  //
-  //  ~ Verifica atualizações de entrada de dados.                                                                                                //
-  if (Serial.available() > 0) Receive();                                                                                                          //
                                                                                                                                                   //
   //  ~ Atualiza o valor referenciado no potenciometro.                                                                                           //
   camera_signal = analogRead(CAMERA);                                                                                                             //
@@ -275,21 +220,9 @@ void setup()                                                                    
   //  ~ Carrega as definições padrão a partir dos componentes da placa.                                                                           //
   robot_power = digitalRead(POWER_INT);                                                                                                           //
   camera_signal = analogRead(CAMERA);                                                                                                             //
+  robot_automatic = digitalRead(ROBOT_MODE);                                                                                                      //
                                                                                                                                                   //
   //  ~ Configura o robo a partir das pré-definições, sem passar por delay.                                                                       //
   SendTo(2, 0, (int) robot_power);                                                                                                                //
   SendTo(2, 1, camera_signal);                                                                                                                    //
 }                                                                                                                                                 //
-/* ---------------------------------------------------------------------------------------------------------------------------------------------- */
-/*  ~ Função responsável pelo tratamento dos dados recebido de outro arduino.                                                                     */
-void HandleData(int code, int message)                                                                                                            //
-{                                                                                                                                                 //
-  //  ~ Verifica o que deve fazer com a mensagem recebida baseando-se no código de função que foi recebido junto dela.                            //
-  switch(code)                                                                                                                                    //
-  {                                                                                                                                               //
-    //  ~ Altera o estado do LED entre ligado e desligado conforme recebido.                                                                      //
-    case 0:                                                                                                                                       //
-      break;                                                                                                                                      //
-  }                                                                                                                                               //
-}                                                                                                                                                 //
-/* ---------------------------------------------------------------------------------------------------------------------------------------------- */
